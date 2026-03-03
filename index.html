@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRMS | Home</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <div class="flash-container">
+        {% for category, message in messages %}
+          <div class="flash-toast {{ category }}">{{ message }}</div>
+        {% endfor %}
+        </div>
+      {% endif %}
+    {% endwith %}
+
+    <nav class="navbar">
+        <div class="logo">CRMS<span class="dot">.</span></div>
+        <ul class="nav-links">
+            <li><a href="#home" class="active">Home</a></li>
+            <li><a href="#resources">Resources</a></li>
+        </ul>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button id="themeToggle" class="btn-theme"><i class="fa-solid fa-moon"></i></button>
+            <button class="btn-login" id="loginBtn">Login</button>
+        </div>
+    </nav>
+
+    <header id="home" class="hero">
+        <div class="hero-content">
+            <h1 class="hero-title">Campus Resource <br> <span class="accent-text">Management System</span></h1>
+            <p class="hero-subtitle">Easily book labs, borrow equipment, and track campus resources from one central platform.</p>
+            <div class="cta-group">
+                <button class="btn-primary" id="heroLoginBtn">Get Started <i class="fa-solid fa-arrow-right"></i></button>
+            </div>
+        </div>
+    </header>
+
+    <section id="resources" style="padding: 100px 5%; max-width: 1600px; margin: 0 auto; min-height: 80vh;">
+        <div style="text-align: center; margin-bottom: 60px;">
+            <h2 style="font-size: 2.5rem; font-weight: 600;">Available <span class="accent-text">Resources</span></h2>
+            <p style="color: var(--text-muted); margin-top: 10px;">Everything you need for your academics and projects.</p>
+        </div>
+        
+        <div class="grid-layout" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));">
+            <div class="glass-card" style="text-align: center; padding: 50px 30px;">
+                <i class="fa-solid fa-computer" style="font-size: 3.5rem; color: var(--accent-cyan); margin-bottom: 25px;"></i>
+                <h3>Computer Labs</h3>
+                <p style="color: var(--text-muted); margin-top: 15px; font-size: 0.95rem;">High-performance systems equipped with the latest software for programming and design.</p>
+            </div>
+            <div class="glass-card" style="text-align: center; padding: 50px 30px;">
+                <i class="fa-solid fa-video" style="font-size: 3.5rem; color: var(--accent-purple); margin-bottom: 25px;"></i>
+                <h3>A/V Equipment</h3>
+                <p style="color: var(--text-muted); margin-top: 15px; font-size: 0.95rem;">Projectors, smart boards, and audio systems for flawless presentations and events.</p>
+            </div>
+            <div class="glass-card" style="text-align: center; padding: 50px 30px;">
+                <i class="fa-solid fa-users-rectangle" style="font-size: 3.5rem; color: var(--accent-cyan); margin-bottom: 25px;"></i>
+                <h3>Seminar Halls</h3>
+                <p style="color: var(--text-muted); margin-top: 15px; font-size: 0.95rem;">Spacious venues perfectly suited for guest lectures, club meetings, and workshops.</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="modal-overlay" id="authModal">
+        <div class="modal-glass" style="max-width: 420px;">
+            <button class="close-btn" id="closeAuth">&times;</button>
+            
+            <div id="loginView">
+                <h2>Login</h2>
+                <form action="/login" method="POST">
+                    <div class="input-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="student@college.edu" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" name="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-primary full-width">Login</button>
+                    <div class="auth-toggle">
+                        <p>Don't have an account? <span id="toRegister">Register here</span></p>
+                    </div>
+                </form>
+            </div>
+
+            <div id="registerView" style="display: none;">
+                <h2>Register</h2>
+                <form action="/register" method="POST">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" name="name" placeholder="John Doe" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Department</label>
+                        <select name="department" class="premium-select" required>
+                            <option value="" disabled selected>Select Department</option>
+                            <option value="Artificial Intelligence">Artificial Intelligence</option>
+                            <option value="Civil Engineering">Civil Engineering</option>
+                            <option value="Computer Science">Computer Science</option>
+                            <option value="Data Science">Data Science</option>
+                            <option value="Electrical Engineering">Electrical Engineering</option>
+                            <option value="Electronics and Communication">Electronics and Communication</option>
+                            <option value="Information Technology">Information Technology</option>
+                            <option value="Mechanical Engineering">Mechanical Engineering</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Email Address</label>
+                        <input type="email" name="email" placeholder="student@college.edu" required>
+                    </div>
+                    <div class="input-group">
+                        <label>Password</label>
+                        <input type="password" name="password" placeholder="••••••••" required>
+                    </div>
+                    <button type="submit" class="btn-primary full-width">Create Account</button>
+                    <div class="auth-toggle">
+                        <p>Already have an account? <span id="toLogin">Login here</span></p>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>

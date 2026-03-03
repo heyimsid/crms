@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRMS | Dashboard</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="logo">CRMS<span class="dot">.</span></div>
+    <div style="display: flex; align-items: center; gap: 15px;">
+        <button id="themeToggle" class="btn-theme"><i class="fa-solid fa-moon"></i></button>
+        <span style="font-weight: 500; color: var(--text-muted);">
+            <i class="fa-solid fa-user" style="color: var(--accent-cyan);"></i>
+            {{ session.get('name','User') }} | 
+            <span style="text-transform: uppercase;">{{ session.get('role','Guest') }}</span>
+        </span>
+        <a href="/logout" class="btn-secondary">Logout</a>
+    </div>
+</nav>
+
+<div style="padding:120px 3% 50px; max-width: 1800px; margin: 0 auto;">
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+    <div class="flash-container">
+    {% for category, message in messages %}
+        <div class="flash-toast {{ category }}">{{ message }}</div>
+    {% endfor %}
+    </div>
+{% endif %}
+{% endwith %}
+
+{% if session.get('role') == 'admin' %}
+<div class="grid-layout">
+    <div class="glass-card">
+        <h2>Add New Resource</h2>
+        <form action="/add_resource" method="POST">
+            <div class="input-group">
+                <input type="text" name="resource_name" class="premium-input" placeholder="Resource Name (e.g. Lab 404)" required>
+            </div>
+            <div class="input-group">
+                <select name="resource_type" class="premium-select" required>
+                    <option value="" disabled selected>Select Type</option>
+                    <option value="Lab">Lab</option>
+                    <option value="Equipment">Equipment</option>
+                    <option value="Venue">Venue</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <select name="department_id" class="premium-select" required>
+                    <option value="" disabled selected>Assign to Department</option>
+                    {% for d in departments %}
+                        <option value="{{ d.department_id }}">{{ d.department_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="btn-primary full-width">Add Resource</button>
+        </form>
+    </div>
+
+    <div class="glass-card">
+        <h2>Reported Issues</h2>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Reported By</th>
+                        <th>Description</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for i in issues or [] %}
+                    <tr>
+                        <td>{{ i.resource_name }}</td>
+                        <td>{{ i.reported_by }}</td>
+                        <td>{{ i.description }}</td>
+                        <td><span class="badge badge-{{ i.status|lower }}">{{ i.status }}</span></td>
+                        <td>
+                            {% if i.status == 'open' %}
+                            <a href="/resolve_issue/{{ i.issue_id }}" class="btn-secondary" style="font-size: 0.65rem; padding: 6px 12px;">Resolve</a>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="5">No pending issues.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="glass-card" style="margin-top: 30px;">
+    <h2>User Management</h2>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Department</th>
+                    <th>Role</th>
+                    <th>Update Role</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for u in users or [] %}
+                <tr>
+                    <td>{{ u.name }}</td>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.department_name }}</td>
+                    <td><span class="badge badge-{{ u.role|replace(' ','_')|lower }}">{{ u.role }}</span></td>
+                    <td>
+                        {% if u.user_id != session.get('user_id') %}
+                        <form action="/admin/change_role/{{ u.user_id }}" method="POST" style="display:flex; gap:10px;">
+                            <select name="new_role" class="premium-select" style="padding: 8px; font-size: 0.8rem; width: auto;">
+                                <option value="student">Student</option>
+                                <option value="staff">Staff</option>
+                                <option value="hod">HOD</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                            <button type="submit" class="btn-secondary" style="padding: 8px 15px;">Update</button>
+                        </form>
+                        {% else %}
+                        <span style="color: var(--accent-cyan); font-weight: bold;">LOCKED</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+
+{% if session.get('role') == 'hod' %}
+<div class="glass-card" style="margin-bottom: 30px; border-left: 2px solid var(--accent-purple);">
+    <h2>Pending Approvals</h2>
+    <div class="table-responsive">
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Requester</th>
+                    <th>Resource</th>
+                    <th>Date & Time</th>
+                    <th>Purpose</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for a in approvals or [] %}
+                <tr>
+                    <td>{{ a.name }}</td>
+                    <td>{{ a.resource_name }}</td>
+                    <td>{{ a.booking_date }} | {{ a.time_slot }}</td>
+                    <td><em style="color: var(--text-muted);">{{ a.purpose }}</em></td>
+                    <td style="display:flex; gap:10px;">
+                        <a href="/approve/{{ a.booking_id }}" class="btn-primary" style="padding: 8px 15px; font-size: 0.7rem;">Approve</a>
+                        <a href="/reject/{{ a.booking_id }}" class="btn-secondary" style="padding: 8px 15px; font-size: 0.7rem; border-color: #ff0055; color: #ff0055;">Reject</a>
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="5">No pending approvals.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid-layout">
+    <div class="glass-card">
+        <h2>Book a Resource</h2>
+        <form action="/book" method="POST">
+            <div class="input-group">
+                <select name="resource_id" class="premium-select" required>
+                    <option value="" disabled selected>Select Resource</option>
+                    {% for res in resources or [] %}
+                        <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="input-group">
+                <textarea name="purpose" class="premium-input" placeholder="Why do you need this? (e.g. Club Meeting, Practical Exam)" required></textarea>
+            </div>
+            <div class="input-group">
+                <input type="date" name="date" class="premium-input" required>
+            </div>
+            <div class="input-group" style="display: flex; gap: 10px;">
+                <input type="time" name="start_time" class="premium-input" required>
+                <input type="time" name="end_time" class="premium-input" required>
+            </div>
+            <button type="submit" class="btn-primary full-width">Submit Request</button>
+        </form>
+    </div>
+
+    <div class="glass-card">
+        <h2>Campus Schedule</h2>
+        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Check for conflicts before submitting a request.</p>
+        <div class="schedule-scroll">
+            <ul class="schedule-list">
+                {% for s in campus_schedule or [] %}
+                <li class="schedule-item">
+                    <div class="schedule-icon"><i class="fa-solid fa-clock"></i></div>
+                    <div class="schedule-details">
+                        <strong>{{ s.resource_name }}</strong>
+                        <span>{{ s.booking_date }} | {{ s.time_slot }}</span>
+                    </div>
+                    <div class="schedule-status">
+                        <span class="badge badge-{{ s.status|lower }}">{{ s.status }}</span>
+                    </div>
+                </li>
+                {% else %}
+                <li style="color: var(--text-muted); padding: 10px 0;">No upcoming bookings. System clear.</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="grid-layout" style="margin-top: 30px;">
+    <div class="glass-card">
+        <h2>Report an Issue</h2>
+        <form action="/report_issue" method="POST">
+            <div class="input-group">
+                <select name="resource_id" class="premium-select" required>
+                    <option value="0">General Campus Issue</option>
+                    {% for res in resources or [] %}
+                        <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="input-group">
+                <textarea name="description" class="premium-input" placeholder="Describe the issue (e.g., Projector is broken)..." required></textarea>
+            </div>
+            <button type="submit" class="btn-secondary full-width">Submit Report</button>
+        </form>
+    </div>
+
+    <div class="glass-card">
+        <h2>My Bookings</h2>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Resource</th>
+                        <th>Date & Time</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                {% for b in bookings or [] %}
+                    <tr>
+                        <td>{{ b.resource_name }}<br><span style="font-size: 0.75rem; color: var(--text-muted);">{{ b.purpose }}</span></td>
+                        <td>{{ b.booking_date }}<br><span style="font-size: 0.75rem; color: var(--text-muted);">{{ b.time_slot }}</span></td>
+                        <td><span class="badge badge-{{ b.status|replace(' ','_')|lower }}">{{ b.status }}</span></td>
+                    </tr>
+                {% else %}
+                    <tr><td colspan="3">You have no recent bookings.</td></tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endif %}
+
+</div>
+
+<script src="/static/script.js"></script>
+</body>
+</html>
