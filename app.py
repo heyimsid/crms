@@ -8,8 +8,8 @@ app.secret_key = 'crms_premium_secret_key'
 # Database Configuration
 app.config['MYSQL_HOST'] = 'localhost'
 app.config['MYSQL_USER'] = 'root'
-app.config['MYSQL_PASSWORD'] = 'sid510'
-app.config['MYSQL_DB'] = 'crms'
+app.config['MYSQL_PASSWORD'] = 'your db pass'
+app.config['MYSQL_DB'] = 'your database name'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
@@ -220,4 +220,5 @@ def change_role(target_user_id):
     return redirect(url_for('dashboard'))
 
 if __name__ == '__main__':
+
     app.run(debug=True)
