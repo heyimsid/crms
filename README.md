@@ -160,7 +160,7 @@ CREATE TABLE resources (
     FOREIGN KEY (department_id) REFERENCES department(department_id)
 );
 
--- 4. Bookings Table (Includes 'purpose' column)
+-- 4. Bookings Table 
 CREATE TABLE bookings (
     booking_id INT AUTO_INCREMENT PRIMARY KEY,
     booking_date DATE NOT NULL,
@@ -189,23 +189,4 @@ CREATE TABLE issues (
     FOREIGN KEY (reported_by) REFERENCES users(user_id),
     FOREIGN KEY (department_id) REFERENCES department(department_id)
 );
-🚀 Setup & Installation
-Install Dependencies:
-Make sure you have Python installed. Then install the required libraries:
 
-Bash
-pip install Flask Flask-MySQLdb Werkzeug
-Database Configuration:
-
-Open XAMPP/WAMP or your MySQL command line.
-
-Run the SQL schema provided above.
-
-Open app.py and verify your database password matches line 11.
-
-Run the Application:
-
-Bash
-python app.py
-Access the Portal:
-Go to http://127.0.0.1:5000/ in your web browser.
