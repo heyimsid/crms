@@ -231,4 +231,26 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // ── REPORT ISSUE: Department routing hint ─────────────────────────
+  const issueDeptSelect = document.getElementById('issueDeptSelect');
+  const routingHint     = document.getElementById('issue-routing-hint');
+  if (issueDeptSelect && routingHint) {
+    issueDeptSelect.addEventListener('change', function () {
+      const val = this.value;
+      const selectedText = this.options[this.selectedIndex].text;
+      routingHint.style.display = 'block';
+      if (val === '99') {
+        routingHint.style.background = 'rgba(79,70,229,0.10)';
+        routingHint.style.border     = '1px solid rgba(79,70,229,0.25)';
+        routingHint.style.color      = 'var(--v-2)';
+        routingHint.innerHTML        = '<i class="fa-solid fa-building"></i>&nbsp; This issue will be sent directly to the <strong>Admin</strong>.';
+      } else {
+        routingHint.style.background = 'rgba(34,197,94,0.08)';
+        routingHint.style.border     = '1px solid rgba(34,197,94,0.22)';
+        routingHint.style.color      = 'var(--ok)';
+        routingHint.innerHTML        = '<i class="fa-solid fa-user-tie"></i>&nbsp; This issue will be sent to the <strong>HoD of ' + selectedText + '</strong>.';
+      }
+    });
+  }
+
 });
