@@ -66,6 +66,9 @@
     <button class="sb-item" data-page="report">
       <i class="fa-solid fa-triangle-exclamation"></i> Report Issue
     </button>
+    <button class="sb-item" data-page="my-issues">
+      <i class="fa-solid fa-list-check"></i> My Issues
+    </button>
     {% endif %}
 
     {% if session.get('role') == 'admin' %}
@@ -97,6 +100,11 @@
       {% if (approvals or [])|length > 0 %}
         <span class="sb-badge">{{ (approvals or [])|length }}</span>
       {% endif %}
+    </button>
+    <button class="sb-item" data-page="hod-issues">
+      <i class="fa-solid fa-triangle-exclamation"></i> Dept. Issues
+      {% set oi = (hod_issues or [])|selectattr('status','equalto','open')|list|length %}
+      {% if oi > 0 %}<span class="sb-badge">{{ oi }}</span>{% endif %}
     </button>
     {% endif %}
 
@@ -418,30 +426,41 @@
     </div>
 
     <!-- ══════════════════════════════
-         PAGE: REPORT ISSUE (non-admin)
+         PAGE: REPORT ISSUE (student + hod)
     ══════════════════════════════ -->
     <div id="page-report" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">Report an Issue</h1>
-        <p class="page-sub">Let the admin know about any broken or unavailable resource.</p>
+        {% if session.get('role') == 'hod' %}
+        <p class="page-sub">As HoD, your issue goes <strong style="color:var(--v-2);">directly to Admin.</strong></p>
+        {% else %}
+        <p class="page-sub">Select the department your issue belongs to — it gets routed to the right person automatically.</p>
+        {% endif %}
       </div>
       <div class="g2">
         <div class="card">
           <div class="card-head"><i class="fa-solid fa-triangle-exclamation"></i> Submit Report</div>
           <form action="/report_issue" method="POST">
             <div class="field">
-              <label>Resource (optional)</label>
-              <select name="resource_id" class="select" required>
-                <option value="0">General Campus Issue</option>
-                {% for res in resources or [] %}
-                <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
+              <label>Issue Title</label>
+              <input type="text" name="issue_title" class="input" placeholder="e.g. Projector not working in EC Lab 2" required>
+            </div>
+            {% if session.get('role') != 'hod' %}
+            <div class="field">
+              <label>Send To</label>
+              <select name="department_id" class="select" required id="issueDeptSelect">
+                <option value="" disabled selected>Select department…</option>
+                <option value="99">Centralised / Campus-Wide Issue</option>
+                {% for d in departments or [] %}
+                <option value="{{ d.department_id }}">{{ d.department_name }}</option>
                 {% endfor %}
               </select>
             </div>
+            <div id="issue-routing-hint" style="display:none;margin-bottom:12px;padding:10px 14px;border-radius:var(--r-md);font-size:.82rem;"></div>
+            {% endif %}
             <div class="field">
               <label>Description</label>
-              <textarea name="description" class="textarea"
-                placeholder="Describe the problem in detail — e.g. 'Projector in Lab 4 is not working'" required></textarea>
+              <textarea name="description" class="textarea" placeholder="Describe the problem in detail…" required></textarea>
             </div>
             <button type="submit" class="btn btn-warn" style="width:100%;justify-content:center;border-radius:var(--r-full);padding:11px 20px;font-size:.84rem;">
               <i class="fa-solid fa-flag"></i>&nbsp; Submit Report
@@ -449,76 +468,142 @@
           </form>
         </div>
         <div class="card" style="align-self:start;">
-          <div class="card-head"><i class="fa-solid fa-lightbulb"></i> When to report</div>
-          <div class="info-pills">
-            <div class="info-pill">
-              <i class="fa-solid fa-circle-dot" style="color:var(--err);margin-top:2px;"></i>
-              <span class="info-pill-text">Equipment that is broken, damaged, or completely missing.</span>
+          <div class="card-head"><i class="fa-solid fa-route"></i> How it works</div>
+          <div class="steps">
+            {% if session.get('role') == 'hod' %}
+            <div class="step">
+              <div class="step-num" style="background:var(--v-dim);color:var(--v-2);">1</div>
+              <div><div class="step-title">You report an issue</div><div class="step-body">Fill in the title and description.</div></div>
             </div>
-            <div class="info-pill">
-              <i class="fa-solid fa-circle-dot" style="color:var(--warn);margin-top:2px;"></i>
-              <span class="info-pill-text">Labs or venues that are locked or inaccessible during booking hours.</span>
+            <div class="step">
+              <div class="step-num" style="background:var(--warn-bg);color:var(--warn);">2</div>
+              <div><div class="step-title">Goes directly to Admin</div><div class="step-body">Since you are HoD, your issue skips the department queue and lands with Admin directly.</div></div>
             </div>
-            <div class="info-pill">
-              <i class="fa-solid fa-circle-dot" style="color:var(--info);margin-top:2px;"></i>
-              <span class="info-pill-text">Any safety, hygiene, or infrastructure concern on campus.</span>
+            <div class="step">
+              <div class="step-num" style="background:var(--ok-bg);color:var(--ok);">3</div>
+              <div><div class="step-title">Admin resolves it</div><div class="step-body">Track progress under <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('my-issues')">My Issues →</span></div></div>
             </div>
+            {% else %}
+            <div class="step">
+              <div class="step-num" style="background:var(--v-dim);color:var(--v-2);">1</div>
+              <div><div class="step-title">Pick the right department</div><div class="step-body">Select which department the issue belongs to. For campus-wide problems choose Centralised.</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:var(--warn-bg);color:var(--warn);">2</div>
+              <div><div class="step-title">HoD reviews it</div><div class="step-body">The department HoD sees your issue and decides to forward it to Admin.</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num" style="background:var(--ok-bg);color:var(--ok);">3</div>
+              <div><div class="step-title">Admin resolves it</div><div class="step-body">Once forwarded, Admin resolves the issue. Track it under <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('my-issues')">My Issues →</span></div></div>
+            </div>
+            {% endif %}
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         PAGE: MY ISSUES — status tracker (student + hod)
+    ══════════════════════════════ -->
+    <div id="page-my-issues" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">My Issues</h1>
+        <p class="page-sub">Track the live status of every issue you have reported.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-list-check"></i> Issue Status Tracker
+          <div class="card-head-action">
+            <button class="btn btn-xs btn-warn" onclick="switchPage('report')">
+              <i class="fa-solid fa-plus"></i> Report New
+            </button>
+          </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+          <span class="badge badge-open">Open — with HoD</span>
+          <span class="badge badge-forwarded">Forwarded — with Admin</span>
+          <span class="badge badge-resolved">Resolved</span>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl">
+            <thead><tr><th>#</th><th>Issue Title</th><th>Sent To</th><th>Description</th><th>Status</th></tr></thead>
+            <tbody>
+            {% for i in my_issues or [] %}
+            <tr>
+              <td><strong>#{{ i.issue_id }}</strong></td>
+              <td><strong>{{ i.issue_title }}</strong></td>
+              <td style="font-size:.8rem;color:var(--ink-4);">{{ i.sent_to_dept or 'Admin' }}</td>
+              <td style="max-width:260px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
+              <td>
+                <span class="badge badge-{{ i.status|lower }}">
+                  {% if i.status == 'open' %}<i class="fa-solid fa-circle-dot" style="font-size:.6rem;"></i>&nbsp;Open — with HoD
+                  {% elif i.status == 'forwarded' %}<i class="fa-solid fa-share" style="font-size:.6rem;"></i>&nbsp;Forwarded to Admin
+                  {% else %}<i class="fa-solid fa-check" style="font-size:.6rem;"></i>&nbsp;Resolved
+                  {% endif %}
+                </span>
+              </td>
+            </tr>
+            {% else %}
+            <tr class="empty"><td colspan="5">
+              <div class="empty-state"><i class="fa-solid fa-inbox"></i>
+                <p>No issues reported yet.<br><span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('report')">Report your first issue →</span></p>
+              </div>
+            </td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>
     {% endif %}<!-- /non-admin pages -->
 
-
     <!-- ══════════════════════════════
-         PAGE: APPROVALS (admin + hod)
+         PAGE: HOD STUDENT ISSUES — forward only
     ══════════════════════════════ -->
-    {% if session.get('role') in ['admin','hod'] %}
-    <div id="page-approvals" class="page-panel" style="display:none;">
+    {% if session.get('role') == 'hod' %}
+    <div id="page-hod-issues" class="page-panel" style="display:none;">
       <div class="page-head">
-        <h1 class="page-title">Pending Approvals</h1>
-        <p class="page-sub">Review and action booking requests that need your approval.</p>
+        <h1 class="page-title">Student Issues</h1>
+        <p class="page-sub">Issues reported by students to your department. You can forward them to Admin for resolution.</p>
       </div>
       <div class="card">
         <div class="card-head">
-          <i class="fa-solid fa-check-double"></i> Awaiting Review
+          <i class="fa-solid fa-inbox"></i> Incoming Student Issues
           <div class="card-head-action">
-            <span style="font-size:.76rem;color:var(--ink-4);">{{ (approvals or [])|length }} pending</span>
+            <span style="font-size:.76rem;color:var(--ink-4);">{{ (hod_issues or [])|length }} open</span>
           </div>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
+          <span class="badge badge-open">Open — awaiting your action</span>
+          <span class="badge badge-forwarded">Already forwarded to Admin</span>
         </div>
         <div class="search-wrap" style="margin-bottom:14px;">
           <i class="fa-solid fa-magnifying-glass"></i>
-          <input type="text" class="search-input" id="searchApprovals"
-            placeholder="Search by requester, resource, or purpose…"
-            onkeyup="filterContent('searchApprovals','approvalsTbl','tbody tr')">
+          <input type="text" class="search-input" id="searchHodIssues"
+            placeholder="Search by student, title, or description…"
+            onkeyup="filterContent('searchHodIssues','hodIssuesTbl','tbody tr')">
         </div>
         <div class="tbl-wrap">
-          <table class="tbl" id="approvalsTbl">
-            <thead><tr><th>Requester</th><th>Resource</th><th>Date &amp; Time</th><th>Purpose</th><th>Action</th></tr></thead>
+          <table class="tbl" id="hodIssuesTbl">
+            <thead><tr><th>#</th><th>Issue Title</th><th>Reported By</th><th>Dept</th><th>Description</th><th>Action</th></tr></thead>
             <tbody>
-            {% for a in approvals or [] %}
+            {% for i in hod_issues or [] %}
             <tr>
+              <td><strong>#{{ i.issue_id }}</strong></td>
+              <td><strong>{{ i.issue_title }}</strong></td>
+              <td>{{ i.reported_by }}</td>
+              <td style="font-size:.8rem;color:var(--ink-4);">{{ i.reporter_dept or '—' }}</td>
+              <td style="max-width:200px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
               <td>
-                <strong>{{ a.name }}</strong>
-                <span class="sub"><i class="fa-solid fa-building" style="font-size:.6rem;"></i> {{ a.requester_dept or 'Unknown' }}</span>
-              </td>
-              <td>{{ a.resource_name }}</td>
-              <td>{{ a.booking_date }}<span class="sub">{{ a.time_slot }}</span></td>
-              <td style="max-width:160px;color:var(--ink-4);font-style:italic;font-size:.8rem;">{{ a.purpose }}</td>
-              <td>
-                <div style="display:flex;gap:6px;">
-                  <a href="/approve/{{ a.booking_id }}" class="btn btn-xs btn-ok">
-                    <i class="fa-solid fa-check"></i> Approve
-                  </a>
-                  <a href="/reject/{{ a.booking_id }}" class="btn btn-xs btn-err">
-                    <i class="fa-solid fa-xmark"></i> Reject
-                  </a>
-                </div>
+                <a href="/forward_issue/{{ i.issue_id }}" class="btn btn-xs btn-warn"
+                   onclick="return confirm('Forward this issue to Admin?')">
+                  <i class="fa-solid fa-share"></i> Forward to Admin
+                </a>
               </td>
             </tr>
             {% else %}
-            <tr class="empty"><td colspan="5">
-              <div class="empty-state"><i class="fa-solid fa-inbox"></i><p>All caught up — no pending approvals.</p></div>
+            <tr class="empty"><td colspan="6">
+              <div class="empty-state"><i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i><p>No open student issues in your department.</p></div>
             </td></tr>
             {% endfor %}
             </tbody>
@@ -527,6 +612,7 @@
       </div>
     </div>
     {% endif %}
+
 
 
     <!-- ══════════════════════════════
@@ -611,16 +697,23 @@
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="issuesTbl">
-            <thead><tr><th>Resource</th><th>Reported By</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
+            <thead><tr><th>#</th><th>Issue Title</th><th>Reported By</th><th>From Dept</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
             {% for i in issues or [] %}
             <tr>
-              <td><strong>{{ i.resource_name }}</strong></td>
+              <td><strong>#{{ i.issue_id }}</strong></td>
+              <td><strong>{{ i.issue_title }}</strong></td>
               <td>{{ i.reported_by }}</td>
-              <td style="max-width:200px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
-              <td><span class="badge badge-{{ i.status|lower }}">{{ i.status }}</span></td>
+              <td style="font-size:.8rem;color:var(--ink-4);">{{ i.reporter_dept or '—' }}</td>
+              <td style="max-width:180px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
               <td>
-                {% if i.status == 'open' %}
+                <span class="badge badge-{{ i.status|lower }}">
+                  {% if i.status == 'forwarded' %}<i class="fa-solid fa-share" style="font-size:.6rem;"></i>&nbsp;{% endif %}
+                  {{ i.status }}
+                </span>
+              </td>
+              <td>
+                {% if i.status in ['open','forwarded'] %}
                 <a href="/resolve_issue/{{ i.issue_id }}" class="btn btn-xs btn-ok">
                   <i class="fa-solid fa-check"></i> Resolve
                 </a>
@@ -628,8 +721,8 @@
               </td>
             </tr>
             {% else %}
-            <tr class="empty"><td colspan="5">
-              <div class="empty-state"><i class="fa-solid fa-face-smile"></i><p>No open issues. All good!</p></div>
+            <tr class="empty"><td colspan="7">
+              <div class="empty-state"><i class="fa-solid fa-face-smile"></i><p>No issues yet.</p></div>
             </td></tr>
             {% endfor %}
             </tbody>
@@ -721,6 +814,7 @@
 const PAGE_TITLES = {
   overview:'Dashboard', book:'Book a Resource', schedule:'Campus Schedule',
   'my-bookings':'My Bookings', report:'Report Issue',
+  'my-issues':'My Issues', 'hod-issues':'Department Issues',
   approvals:'Approvals', 'add-resource':'Add Resource',
   issues:'Issue Tracker', users:'User Management'
 };
