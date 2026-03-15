@@ -12,7 +12,7 @@ app.secret_key = 'crms_premium_secret_key'
 # ── Database ────────────────────────────────────────────────────────────
 app.config['MYSQL_HOST']        = 'localhost'
 app.config['MYSQL_USER']        = 'root'
-app.config['MYSQL_PASSWORD']    = 'sid510'
+app.config['MYSQL_PASSWORD']    = 'passsss'
 app.config['MYSQL_DB']          = 'crms'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
@@ -41,9 +41,9 @@ def fix_booking_departments():
 # 2. Generate a 16-char App Password and paste below (no spaces)
 EMAIL_HOST     = 'smtp.gmail.com'
 EMAIL_PORT     = 587
-EMAIL_USER     = 'your_gmail@gmail.com'      # ← change this
-EMAIL_PASSWORD = 'abcdefghijklmnop'          # ← 16-char App Password
-EMAIL_FROM     = 'NEXUS Campus <your_gmail@gmail.com>'
+EMAIL_USER     = 'nexuscrms@gmail.com'      # ← change this
+EMAIL_PASSWORD = '..................'          # ← 16-char App Password
+EMAIL_FROM     = 'NEXUS Campus <nexuscrms@gmail.com>'
 
 otp_store = {}
 
