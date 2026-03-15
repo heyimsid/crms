@@ -23,22 +23,19 @@
 
 <div class="shell">
 
-<!-- ════════════════════════════════
-     SIDEBAR
-════════════════════════════════ -->
+<!-- ═══════════════════ SIDEBAR ═══════════════════ -->
 <aside class="sidebar" id="sidebar">
+
   <div class="sb-header">
-    <div>
-      <div class="sb-logo">NEXUS<span class="dot">·</span></div>
-      <div class="sb-tag">Resource Management</div>
-    </div>
+    <div class="sb-logo">NEXUS<span class="dot">·</span></div>
+    <div class="sb-tag">Resource Management</div>
   </div>
 
   <div class="sb-user">
     <div class="sb-av">{{ session.get('name','U')[:1]|upper }}</div>
     <div>
       <div class="sb-name">{{ session.get('name','User') }}</div>
-      <div class="sb-role">{{ session.get('role','student') | title }}</div>
+      <div class="sb-role">{{ session.get('role','student')|title }}</div>
     </div>
   </div>
 
@@ -49,8 +46,8 @@
       <i class="fa-solid fa-grid-2"></i> Dashboard
     </button>
 
+    <!-- NON-ADMIN pages -->
     {% if session.get('role') != 'admin' %}
-    <!-- NON-ADMIN: show booking tools -->
     <span class="sb-sec">Resources</span>
     <button class="sb-item" data-page="book">
       <i class="fa-regular fa-calendar-plus"></i> Book a Resource
@@ -61,7 +58,6 @@
     <button class="sb-item" data-page="my-bookings">
       <i class="fa-solid fa-calendar-check"></i> My Bookings
     </button>
-
     <span class="sb-sec">Support</span>
     <button class="sb-item" data-page="report">
       <i class="fa-solid fa-triangle-exclamation"></i> Report Issue
@@ -71,8 +67,8 @@
     </button>
     {% endif %}
 
+    <!-- ADMIN pages -->
     {% if session.get('role') == 'admin' %}
-    <!-- ADMIN: management tools only -->
     <span class="sb-sec">Administration</span>
     <button class="sb-item" data-page="approvals">
       <i class="fa-solid fa-check-double"></i> Approvals
@@ -85,7 +81,7 @@
     </button>
     <button class="sb-item" data-page="issues">
       <i class="fa-solid fa-flag"></i> Issues
-      {% set oc = (issues or [])|selectattr('status','equalto','open')|list|length %}
+      {% set oc = (issues or [])|selectattr('status','ne','resolved')|list|length %}
       {% if oc > 0 %}<span class="sb-badge">{{ oc }}</span>{% endif %}
     </button>
     <button class="sb-item" data-page="users">
@@ -93,6 +89,7 @@
     </button>
     {% endif %}
 
+    <!-- HOD pages -->
     {% if session.get('role') == 'hod' %}
     <span class="sb-sec">Management</span>
     <button class="sb-item" data-page="approvals">
@@ -102,8 +99,8 @@
       {% endif %}
     </button>
     <button class="sb-item" data-page="hod-issues">
-      <i class="fa-solid fa-triangle-exclamation"></i> Dept. Issues
-      {% set oi = (hod_issues or [])|selectattr('status','equalto','open')|list|length %}
+      <i class="fa-solid fa-triangle-exclamation"></i> Student Issues
+      {% set oi = (hod_issues or [])|length %}
       {% if oi > 0 %}<span class="sb-badge">{{ oi }}</span>{% endif %}
     </button>
     {% endif %}
@@ -118,17 +115,17 @@
       <i class="fa-solid fa-right-from-bracket"></i> Sign Out
     </a>
   </div>
+
 </aside>
 
-<!-- ════════════════════════════════
-     MAIN CONTENT
-════════════════════════════════ -->
+<!-- ═══════════════════ MAIN ═══════════════════ -->
 <div class="main">
 
-  <!-- TOPBAR -->
   <header class="topbar">
     <div style="display:flex;align-items:center;gap:11px;">
-      <button class="btn btn-icon" id="sbToggle" style="display:none;"><i class="fa-solid fa-bars"></i></button>
+      <button class="btn btn-icon" id="sbToggle" style="display:none;">
+        <i class="fa-solid fa-bars"></i>
+      </button>
       <span class="topbar-title" id="topbar-title">Dashboard</span>
     </div>
     <div class="topbar-right">
@@ -138,16 +135,13 @@
 
   <div class="page">
 
-    <!-- ══════════════════════════════
-         PAGE: OVERVIEW (all roles)
-    ══════════════════════════════ -->
-    <div id="page-overview" class="page-panel active">
+    <!-- ══════ OVERVIEW (all roles) ══════ -->
+    <div id="page-overview" class="page-panel" style="display:block;">
       <div class="page-head">
         <h1 class="page-title" id="greeting-el">Welcome</h1>
         <p class="page-sub">Here's what's happening on your campus today.</p>
       </div>
 
-      <!-- STAT CARDS -->
       <div class="stat-row">
         <div class="stat" style="border-top:2px solid var(--v);">
           <i class="fa-solid fa-calendar-check stat-icon" style="color:var(--v);"></i>
@@ -184,28 +178,26 @@
         {% endif %}
       </div>
 
-      <!-- ALERT BANNER for admins with pending approvals -->
       {% if session.get('role') in ['admin','hod'] and (approvals or [])|length > 0 %}
       <div style="margin-bottom:16px;padding:14px 18px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--r-lg);display:flex;align-items:center;gap:12px;">
         <i class="fa-solid fa-bell" style="color:var(--warn);"></i>
         <span style="font-size:.85rem;color:var(--ink-2);flex:1;">
-          <strong style="color:var(--ink-1);">{{ (approvals or [])|length }} booking{{ 's' if (approvals or [])|length != 1 }}</strong> need{{ 's' if (approvals or [])|length == 1 }} your approval.
+          <strong style="color:var(--ink-1);">{{ (approvals or [])|length }} booking{{ 's' if (approvals or [])|length != 1 }}</strong>
+          need your approval.
         </span>
         <button class="btn btn-warn btn-sm" onclick="switchPage('approvals')">Review →</button>
       </div>
       {% endif %}
 
-      <!-- RECENT OVERVIEW GRID -->
       <div class="g2">
-        <!-- Recent bookings -->
         <div class="card">
           <div class="card-head">
             <i class="fa-solid fa-clock-rotate-left"></i> Recent Bookings
+            {% if session.get('role') != 'admin' %}
             <div class="card-head-action">
-              {% if session.get('role') != 'admin' %}
               <button class="btn btn-xs btn-dark" onclick="switchPage('my-bookings')">View all</button>
-              {% endif %}
             </div>
+            {% endif %}
           </div>
           <div class="tbl-wrap">
             <table class="tbl">
@@ -219,9 +211,7 @@
               </tr>
               {% else %}
               <tr class="empty"><td colspan="3">
-                <div class="empty-state"><i class="fa-regular fa-calendar-xmark"></i>
-                  <p>No bookings yet.</p>
-                </div>
+                <div class="empty-state"><i class="fa-regular fa-calendar-xmark"></i><p>No bookings yet.</p></div>
               </td></tr>
               {% endfor %}
               </tbody>
@@ -229,15 +219,14 @@
           </div>
         </div>
 
-        <!-- Upcoming campus schedule -->
         <div class="card">
           <div class="card-head">
             <i class="fa-regular fa-calendar-days"></i> Upcoming Schedule
+            {% if session.get('role') != 'admin' %}
             <div class="card-head-action">
-              {% if session.get('role') != 'admin' %}
               <button class="btn btn-xs btn-dark" onclick="switchPage('schedule')">View all</button>
-              {% endif %}
             </div>
+            {% endif %}
           </div>
           <div class="sched-scroll">
             <ul class="sched-list">
@@ -254,7 +243,7 @@
               <li>
                 <div class="empty-state">
                   <i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i>
-                  <p>All clear — no upcoming bookings.</p>
+                  <p>No upcoming bookings.</p>
                 </div>
               </li>
               {% endfor %}
@@ -265,9 +254,7 @@
     </div><!-- /overview -->
 
 
-    <!-- ══════════════════════════════
-         PAGE: BOOK A RESOURCE (non-admin)
-    ══════════════════════════════ -->
+    <!-- ══════ BOOK A RESOURCE (non-admin) ══════ -->
     {% if session.get('role') != 'admin' %}
     <div id="page-book" class="page-panel" style="display:none;">
       <div class="page-head">
@@ -289,7 +276,7 @@
             </div>
             <div class="field">
               <label>Purpose</label>
-              <textarea name="purpose" class="textarea" placeholder="e.g. Club meeting, Practical exam, Guest lecture…" required></textarea>
+              <textarea name="purpose" class="textarea" placeholder="e.g. Club meeting, Practical exam…" required></textarea>
             </div>
             <div class="field">
               <label>Date</label>
@@ -299,38 +286,36 @@
               <label>Time Slot</label>
               <div class="input-row">
                 <div class="field"><input type="time" name="start_time" class="input" required></div>
-                <div class="field"><input type="time" name="end_time"   class="input" required></div>
+                <div class="field"><input type="time" name="end_time" class="input" required></div>
               </div>
             </div>
-            <button type="submit" class="btn btn-v" style="width:100%;justify-content:center;margin-top:6px;">
+            <button type="submit" class="btn btn-v" style="width:100%;justify-content:center;margin-top:4px;">
               <i class="fa-solid fa-paper-plane"></i>&nbsp; Submit Request
             </button>
           </form>
         </div>
         <div class="card" style="align-self:start;">
-          <div class="card-head"><i class="fa-solid fa-info-circle"></i> How it works</div>
+          <div class="card-head"><i class="fa-solid fa-circle-info"></i> How it works</div>
           <div class="steps">
             <div class="step">
               <div class="step-num">1</div>
-              <div><div class="step-title">Pick a resource</div><div class="step-body">Choose from available labs, venues, or equipment on campus.</div></div>
+              <div><div class="step-title">Pick a resource</div><div class="step-body">Choose from available labs, venues, or equipment.</div></div>
             </div>
             <div class="step">
               <div class="step-num">2</div>
-              <div><div class="step-title">State your purpose</div><div class="step-body">Give a clear reason — approvers use this to evaluate requests.</div></div>
+              <div><div class="step-title">State your purpose</div><div class="step-body">Give a clear reason — approvers use this to evaluate your request.</div></div>
             </div>
             <div class="step">
               <div class="step-num">3</div>
-              <div><div class="step-title">Wait for approval</div><div class="step-body">Lab/Venue requests go to your HoD. Centralised Facilities go to Admin.</div></div>
+              <div><div class="step-title">Wait for approval</div><div class="step-body">Lab/Venue → HoD. Centralised Facilities → Admin.</div></div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         PAGE: CAMPUS SCHEDULE (non-admin)
-    ══════════════════════════════ -->
+
+    <!-- ══════ CAMPUS SCHEDULE (non-admin) ══════ -->
     <div id="page-schedule" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">Campus Schedule</h1>
@@ -368,9 +353,8 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         PAGE: MY BOOKINGS (non-admin)
-    ══════════════════════════════ -->
+
+    <!-- ══════ MY BOOKINGS (non-admin) ══════ -->
     <div id="page-my-bookings" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">My Bookings</h1>
@@ -403,10 +387,9 @@
               <td><span class="badge badge-{{ b.status|replace(' ','_')|lower }}">{{ b.status }}</span></td>
               <td>
                 {% if b.status in ['pending','approved'] %}
-                <a href="/cancel_booking/{{ b.booking_id }}" class="btn btn-xs btn-err"
-                   onclick="return confirm('Cancel this booking?')">
+                <button class="btn btn-xs btn-err" data-action="cancel" data-id="{{ b.booking_id }}">
                   <i class="fa-solid fa-xmark"></i> Cancel
-                </a>
+                </button>
                 {% else %}<span style="color:var(--ink-5);">—</span>{% endif %}
               </td>
             </tr>
@@ -425,16 +408,15 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         PAGE: REPORT ISSUE (student + hod)
-    ══════════════════════════════ -->
+
+    <!-- ══════ REPORT ISSUE (non-admin) ══════ -->
     <div id="page-report" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">Report an Issue</h1>
         {% if session.get('role') == 'hod' %}
         <p class="page-sub">As HoD, your issue goes <strong style="color:var(--v-2);">directly to Admin.</strong></p>
         {% else %}
-        <p class="page-sub">Select the department your issue belongs to — it gets routed to the right person automatically.</p>
+        <p class="page-sub">Select the department your issue belongs to — routed to the right person automatically.</p>
         {% endif %}
       </div>
       <div class="g2">
@@ -472,29 +454,29 @@
           <div class="steps">
             {% if session.get('role') == 'hod' %}
             <div class="step">
-              <div class="step-num" style="background:var(--v-dim);color:var(--v-2);">1</div>
+              <div class="step-num">1</div>
               <div><div class="step-title">You report an issue</div><div class="step-body">Fill in the title and description.</div></div>
             </div>
             <div class="step">
-              <div class="step-num" style="background:var(--warn-bg);color:var(--warn);">2</div>
-              <div><div class="step-title">Goes directly to Admin</div><div class="step-body">Since you are HoD, your issue skips the department queue and lands with Admin directly.</div></div>
+              <div class="step-num">2</div>
+              <div><div class="step-title">Goes directly to Admin</div><div class="step-body">Your issue skips the department queue and lands with Admin directly.</div></div>
             </div>
             <div class="step">
-              <div class="step-num" style="background:var(--ok-bg);color:var(--ok);">3</div>
-              <div><div class="step-title">Admin resolves it</div><div class="step-body">Track progress under <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('my-issues')">My Issues →</span></div></div>
+              <div class="step-num">3</div>
+              <div><div class="step-title">Admin resolves it</div><div class="step-body">Track it under <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('my-issues')">My Issues →</span></div></div>
             </div>
             {% else %}
             <div class="step">
-              <div class="step-num" style="background:var(--v-dim);color:var(--v-2);">1</div>
-              <div><div class="step-title">Pick the right department</div><div class="step-body">Select which department the issue belongs to. For campus-wide problems choose Centralised.</div></div>
+              <div class="step-num">1</div>
+              <div><div class="step-title">Pick the right department</div><div class="step-body">Select which department the issue belongs to.</div></div>
             </div>
             <div class="step">
-              <div class="step-num" style="background:var(--warn-bg);color:var(--warn);">2</div>
-              <div><div class="step-title">HoD reviews it</div><div class="step-body">The department HoD sees your issue and decides to forward it to Admin.</div></div>
+              <div class="step-num">2</div>
+              <div><div class="step-title">HoD reviews it</div><div class="step-body">The HoD decides whether to forward it to Admin.</div></div>
             </div>
             <div class="step">
-              <div class="step-num" style="background:var(--ok-bg);color:var(--ok);">3</div>
-              <div><div class="step-title">Admin resolves it</div><div class="step-body">Once forwarded, Admin resolves the issue. Track it under <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('my-issues')">My Issues →</span></div></div>
+              <div class="step-num">3</div>
+              <div><div class="step-title">Admin resolves it</div><div class="step-body">Track it under <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('my-issues')">My Issues →</span></div></div>
             </div>
             {% endif %}
           </div>
@@ -502,9 +484,8 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         PAGE: MY ISSUES — status tracker (student + hod)
-    ══════════════════════════════ -->
+
+    <!-- ══════ MY ISSUES (non-admin) ══════ -->
     <div id="page-my-issues" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">My Issues</h1>
@@ -536,17 +517,18 @@
               <td style="max-width:260px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
               <td>
                 <span class="badge badge-{{ i.status|lower }}">
-                  {% if i.status == 'open' %}<i class="fa-solid fa-circle-dot" style="font-size:.6rem;"></i>&nbsp;Open — with HoD
-                  {% elif i.status == 'forwarded' %}<i class="fa-solid fa-share" style="font-size:.6rem;"></i>&nbsp;Forwarded to Admin
-                  {% else %}<i class="fa-solid fa-check" style="font-size:.6rem;"></i>&nbsp;Resolved
-                  {% endif %}
+                  {% if i.status == 'open' %}Open — with HoD
+                  {% elif i.status == 'forwarded' %}Forwarded to Admin
+                  {% else %}Resolved{% endif %}
                 </span>
               </td>
             </tr>
             {% else %}
             <tr class="empty"><td colspan="5">
               <div class="empty-state"><i class="fa-solid fa-inbox"></i>
-                <p>No issues reported yet.<br><span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('report')">Report your first issue →</span></p>
+                <p>No issues reported yet.<br>
+                  <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('report')">Report your first issue →</span>
+                </p>
               </div>
             </td></tr>
             {% endfor %}
@@ -557,14 +539,68 @@
     </div>
     {% endif %}<!-- /non-admin pages -->
 
-    <!-- ══════════════════════════════
-         PAGE: HOD STUDENT ISSUES — forward only
-    ══════════════════════════════ -->
+
+    <!-- ══════ APPROVALS (hod + admin) ══════ -->
+    {% if session.get('role') in ['hod','admin'] %}
+    <div id="page-approvals" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Pending Approvals</h1>
+        <p class="page-sub">Review and action booking requests that need your approval.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-check-double"></i> Awaiting Review
+          <div class="card-head-action">
+            <span style="font-size:.76rem;color:var(--ink-4);">{{ (approvals or [])|length }} pending</span>
+          </div>
+        </div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="searchApprovals"
+            placeholder="Search by requester, resource, or purpose…"
+            onkeyup="filterContent('searchApprovals','approvalsTbl','tbody tr')">
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="approvalsTbl">
+            <thead><tr><th>Requester</th><th>Dept</th><th>Resource</th><th>Date &amp; Time</th><th>Purpose</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for a in approvals or [] %}
+            <tr>
+              <td><strong>{{ a.name }}</strong></td>
+              <td style="font-size:.8rem;color:var(--ink-4);">{{ a.requester_dept or '—' }}</td>
+              <td>{{ a.resource_name }}</td>
+              <td>{{ a.booking_date }}<span class="sub">{{ a.time_slot }}</span></td>
+              <td style="max-width:140px;color:var(--ink-4);font-style:italic;font-size:.8rem;">{{ a.purpose }}</td>
+              <td>
+                <div style="display:flex;gap:6px;">
+                  <button class="btn btn-xs btn-ok" data-action="approve" data-id="{{ a.booking_id }}">
+                    <i class="fa-solid fa-check"></i> Approve
+                  </button>
+                  <button class="btn btn-xs btn-err" data-action="reject" data-id="{{ a.booking_id }}">
+                    <i class="fa-solid fa-xmark"></i> Reject
+                  </button>
+                </div>
+              </td>
+            </tr>
+            {% else %}
+            <tr class="empty"><td colspan="6">
+              <div class="empty-state"><i class="fa-solid fa-inbox"></i><p>All caught up — no pending approvals.</p></div>
+            </td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}<!-- /approvals -->
+
+
+    <!-- ══════ STUDENT ISSUES (hod only) ══════ -->
     {% if session.get('role') == 'hod' %}
     <div id="page-hod-issues" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">Student Issues</h1>
-        <p class="page-sub">Issues reported by students to your department. You can forward them to Admin for resolution.</p>
+        <p class="page-sub">Issues reported by students to your department. Forward to Admin if needed.</p>
       </div>
       <div class="card">
         <div class="card-head">
@@ -575,12 +611,11 @@
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;">
           <span class="badge badge-open">Open — awaiting your action</span>
-          <span class="badge badge-forwarded">Already forwarded to Admin</span>
         </div>
         <div class="search-wrap" style="margin-bottom:14px;">
           <i class="fa-solid fa-magnifying-glass"></i>
           <input type="text" class="search-input" id="searchHodIssues"
-            placeholder="Search by student, title, or description…"
+            placeholder="Search issues…"
             onkeyup="filterContent('searchHodIssues','hodIssuesTbl','tbody tr')">
         </div>
         <div class="tbl-wrap">
@@ -595,15 +630,14 @@
               <td style="font-size:.8rem;color:var(--ink-4);">{{ i.reporter_dept or '—' }}</td>
               <td style="max-width:200px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
               <td>
-                <a href="/forward_issue/{{ i.issue_id }}" class="btn btn-xs btn-warn"
-                   onclick="return confirm('Forward this issue to Admin?')">
+                <button class="btn btn-xs btn-warn" data-action="forward" data-id="{{ i.issue_id }}">
                   <i class="fa-solid fa-share"></i> Forward to Admin
-                </a>
+                </button>
               </td>
             </tr>
             {% else %}
             <tr class="empty"><td colspan="6">
-              <div class="empty-state"><i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i><p>No open student issues in your department.</p></div>
+              <div class="empty-state"><i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i><p>No open student issues.</p></div>
             </td></tr>
             {% endfor %}
             </tbody>
@@ -611,13 +645,10 @@
         </div>
       </div>
     </div>
-    {% endif %}
+    {% endif %}<!-- /hod-issues -->
 
 
-
-    <!-- ══════════════════════════════
-         PAGE: ADD RESOURCE (admin only)
-    ══════════════════════════════ -->
+    <!-- ══════ ADD RESOURCE (admin only) ══════ -->
     {% if session.get('role') == 'admin' %}
     <div id="page-add-resource" class="page-panel" style="display:none;">
       <div class="page-head">
@@ -646,7 +677,7 @@
               <label>Assign to Department</label>
               <select name="department_id" id="departmentId" class="select" required>
                 <option value="" disabled selected>Select department</option>
-                {% for d in departments %}
+                {% for d in departments or [] %}
                 <option value="{{ d.department_id }}">{{ d.department_name }}</option>
                 {% endfor %}
               </select>
@@ -657,38 +688,36 @@
           </form>
         </div>
         <div class="card" style="align-self:start;">
-          <div class="card-head"><i class="fa-solid fa-info-circle"></i> Resource Types</div>
+          <div class="card-head"><i class="fa-solid fa-circle-info"></i> Resource Types</div>
           <div class="info-pills">
             <div class="info-pill">
               <i class="fa-solid fa-building" style="color:var(--v-2);margin-top:2px;"></i>
               <div>
                 <div class="step-title">Centralised Facility</div>
-                <div class="step-body">Shared across departments. Approved by Admin. Department = 99.</div>
+                <div class="step-body">Shared campus resource. Approved by Admin. Uses dept_id = 99.</div>
               </div>
             </div>
             <div class="info-pill">
               <i class="fa-solid fa-computer" style="color:var(--c);margin-top:2px;"></i>
               <div>
                 <div class="step-title">Lab / Equipment / Venue</div>
-                <div class="step-body">Belongs to a department. Approved by the respective HoD first.</div>
+                <div class="step-body">Belongs to a department. Approved by the HoD first.</div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         PAGE: ISSUES (admin only)
-    ══════════════════════════════ -->
+
+    <!-- ══════ ISSUES TRACKER (admin only) ══════ -->
     <div id="page-issues" class="page-panel" style="display:none;">
       <div class="page-head">
-        <h1 class="page-title">Reported Issues</h1>
-        <p class="page-sub">View and resolve all campus issues submitted by users.</p>
+        <h1 class="page-title">Issue Tracker</h1>
+        <p class="page-sub">All issues forwarded by HoDs or reported directly to Admin.</p>
       </div>
       <div class="card">
-        <div class="card-head"><i class="fa-solid fa-triangle-exclamation"></i> Issue Tracker</div>
+        <div class="card-head"><i class="fa-solid fa-triangle-exclamation"></i> Campus Issues</div>
         <div class="search-wrap" style="margin-bottom:14px;">
           <i class="fa-solid fa-magnifying-glass"></i>
           <input type="text" class="search-input" id="searchIssues"
@@ -714,15 +743,15 @@
               </td>
               <td>
                 {% if i.status in ['open','forwarded'] %}
-                <a href="/resolve_issue/{{ i.issue_id }}" class="btn btn-xs btn-ok">
+                <button class="btn btn-xs btn-ok" data-action="resolve" data-id="{{ i.issue_id }}">
                   <i class="fa-solid fa-check"></i> Resolve
-                </a>
+                </button>
                 {% else %}<span style="color:var(--ink-5);">—</span>{% endif %}
               </td>
             </tr>
             {% else %}
             <tr class="empty"><td colspan="7">
-              <div class="empty-state"><i class="fa-solid fa-face-smile"></i><p>No issues yet.</p></div>
+              <div class="empty-state"><i class="fa-solid fa-face-smile"></i><p>No issues. All good!</p></div>
             </td></tr>
             {% endfor %}
             </tbody>
@@ -731,16 +760,14 @@
       </div>
     </div>
 
-    <!-- ══════════════════════════════
-         PAGE: USER MANAGEMENT (admin only)
-    ══════════════════════════════ -->
+
+    <!-- ══════ USER MANAGEMENT (admin only) ══════ -->
     <div id="page-users" class="page-panel" style="display:none;">
       <div class="page-head">
         <h1 class="page-title">User Management</h1>
-        <p class="page-sub">View all registered users and manage their platform roles.</p>
+        <p class="page-sub">View all registered users and manage their roles.</p>
       </div>
 
-      <!-- Role filter tabs -->
       <div class="tab-bar">
         <button class="tab active" data-tab="u-all">All</button>
         <button class="tab" data-tab="u-student">Students</button>
@@ -796,12 +823,13 @@
     </div>
     {% endif %}<!-- /admin pages -->
 
+
   </div><!-- /page -->
 </div><!-- /main -->
 </div><!-- /shell -->
 
 <script>
-// GREETING
+// ── GREETING ─────────────────────────────────────────────────────────
 (function(){
   const h = new Date().getHours();
   const g = h<12?'Good morning':h<18?'Good afternoon':'Good evening';
@@ -810,16 +838,94 @@
   if(el) el.textContent = name ? `${g}, ${name}` : g;
 })();
 
-// PAGE SWITCHER
+// ── TOAST ─────────────────────────────────────────────────────────────
+function showToast(msg, type='success'){
+  document.querySelectorAll('.js-toast').forEach(t=>t.remove());
+  const t = document.createElement('div');
+  t.className = 'js-toast flash-toast ' + type;
+  t.innerHTML = msg;
+  t.style.cssText = 'position:fixed;top:72px;left:50%;transform:translateX(-50%);z-index:9999;min-width:300px;pointer-events:auto;';
+  document.body.appendChild(t);
+  setTimeout(()=>{ t.style.transition='opacity 0.4s'; t.style.opacity='0'; setTimeout(()=>t.remove(),400); }, 3500);
+}
+
+// ── AJAX ACTION ───────────────────────────────────────────────────────
+async function doAction(url, btn, onSuccess){
+  btn.disabled = true;
+  const orig = btn.innerHTML;
+  btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+  try {
+    const res  = await fetch(url);
+    const data = await res.json();
+    if(data.ok){
+      showToast('<i class="fa-solid fa-check-circle"></i>&nbsp; ' + data.msg, 'success');
+      if(onSuccess) onSuccess(data);
+    } else {
+      showToast('<i class="fa-solid fa-circle-exclamation"></i>&nbsp; ' + data.msg, 'error');
+      btn.disabled = false;
+      btn.innerHTML = orig;
+    }
+  } catch(e){
+    showToast('<i class="fa-solid fa-circle-exclamation"></i>&nbsp; Something went wrong.', 'error');
+    btn.disabled = false;
+    btn.innerHTML = orig;
+  }
+}
+
+// ── ACTION BUTTONS ────────────────────────────────────────────────────
+document.addEventListener('click', function(e){
+  const btn = e.target.closest('[data-action]');
+  if(!btn) return;
+  e.preventDefault();
+  const action = btn.dataset.action;
+  const id     = btn.dataset.id;
+  const row    = btn.closest('tr');
+
+  if(action === 'approve'){
+    doAction(`/approve/${id}`, btn, ()=>{
+      row.querySelector('.badge').className = 'badge badge-approved';
+      row.querySelector('.badge').textContent = 'Approved';
+      row.querySelector('td:last-child').innerHTML = '<span style="color:var(--ink-5);">—</span>';
+    });
+  }
+  else if(action === 'reject'){
+    doAction(`/reject/${id}`, btn, ()=>{
+      row.querySelector('.badge').className = 'badge badge-rejected';
+      row.querySelector('.badge').textContent = 'Rejected';
+      row.querySelector('td:last-child').innerHTML = '<span style="color:var(--ink-5);">—</span>';
+    });
+  }
+  else if(action === 'cancel'){
+    doAction(`/cancel_booking/${id}`, btn, ()=>{
+      row.style.transition='opacity 0.4s'; row.style.opacity='0';
+      setTimeout(()=>row.remove(), 400);
+    });
+  }
+  else if(action === 'forward'){
+    if(!confirm('Forward this issue to Admin?')) return;
+    doAction(`/forward_issue/${id}`, btn, ()=>{
+      row.style.transition='opacity 0.4s'; row.style.opacity='0';
+      setTimeout(()=>row.remove(), 400);
+    });
+  }
+  else if(action === 'resolve'){
+    doAction(`/resolve_issue/${id}`, btn, ()=>{
+      row.querySelector('.badge').className = 'badge badge-resolved';
+      row.querySelector('.badge').textContent = 'Resolved';
+      row.querySelector('td:last-child').innerHTML = '<span style="color:var(--ink-5);">—</span>';
+    });
+  }
+});
+
+// ── PAGE SWITCHER ─────────────────────────────────────────────────────
 const PAGE_TITLES = {
   overview:'Dashboard', book:'Book a Resource', schedule:'Campus Schedule',
-  'my-bookings':'My Bookings', report:'Report Issue',
-  'my-issues':'My Issues', 'hod-issues':'Department Issues',
-  approvals:'Approvals', 'add-resource':'Add Resource',
-  issues:'Issue Tracker', users:'User Management'
+  'my-bookings':'My Bookings', report:'Report Issue', 'my-issues':'My Issues',
+  'hod-issues':'Student Issues', approvals:'Approvals',
+  'add-resource':'Add Resource', issues:'Issue Tracker', users:'User Management'
 };
 function switchPage(id){
-  document.querySelectorAll('.page-panel').forEach(p=>p.style.display='none');
+  document.querySelectorAll('.page-panel').forEach(p=>{ p.style.display='none'; p.classList.remove('active'); });
   const t = document.getElementById('page-'+id);
   if(t){ t.style.display='block'; t.classList.add('active'); }
   document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
@@ -827,26 +933,26 @@ function switchPage(id){
   if(nb) nb.classList.add('active');
   const tb = document.getElementById('topbar-title');
   if(tb) tb.textContent = PAGE_TITLES[id]||id;
+  document.querySelector('.page').scrollTop = 0;
 }
 document.querySelectorAll('.sb-item[data-page]').forEach(btn=>{
   btn.addEventListener('click',()=>switchPage(btn.dataset.page));
 });
 
-// USER TAB FILTER
+// ── USER ROLE TAB FILTER ──────────────────────────────────────────────
 document.querySelectorAll('.tab[data-tab]').forEach(tab=>{
   tab.addEventListener('click',()=>{
     tab.closest('.tab-bar').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
     tab.classList.add('active');
     const f = tab.dataset.tab;
+    const map={'u-student':'student','u-staff':'staff','u-hod':'hod','u-admin':'admin'};
     document.querySelectorAll('#usersTbl tbody tr[data-role]').forEach(row=>{
-      if(f==='u-all'){row.style.display='';return;}
-      const map={'u-student':'student','u-staff':'staff','u-hod':'hod','u-admin':'admin'};
-      row.style.display=row.dataset.role===map[f]?'':'none';
+      row.style.display = (f==='u-all' || row.dataset.role===map[f]) ? '' : 'none';
     });
   });
 });
 
-// SEARCH FILTER
+// ── SEARCH FILTER ─────────────────────────────────────────────────────
 function filterContent(inputId, containerId, sel){
   const f = document.getElementById(inputId).value.toLowerCase();
   const c = document.getElementById(containerId);
@@ -856,7 +962,7 @@ function filterContent(inputId, containerId, sel){
   });
 }
 
-// MOBILE SIDEBAR
+// ── MOBILE SIDEBAR ────────────────────────────────────────────────────
 const sbToggle = document.getElementById('sbToggle');
 const sidebar  = document.getElementById('sidebar');
 if(sbToggle){ sbToggle.style.display='flex'; sbToggle.addEventListener('click',()=>sidebar.classList.toggle('open')); }
