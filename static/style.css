@@ -1,5 +1,6 @@
 /* ================================================================
    NEXUS CRMS — ULTRA PREMIUM DESIGN SYSTEM
+   Dark-first  ·  Apple × Raycast × Linear
    Fonts: Satoshi (display) + Inter (body)
    ================================================================ */
 
@@ -305,6 +306,7 @@ body.light .land-nav{background:rgba(240,240,248,0.72);}
 .badge-approved,.badge-resolved{background:var(--ok-bg);color:var(--ok);}
 .badge-pending{background:var(--warn-bg);color:var(--warn);}
 .badge-rejected,.badge-open{background:var(--err-bg);color:var(--err);}
+.badge-forwarded{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.25);}
 .badge-admin{background:var(--v-dim);color:var(--v-2);}
 .badge-hod{background:var(--purple-bg);color:var(--purple);}
 .badge-staff{background:var(--info-bg);color:var(--info);}
@@ -584,6 +586,7 @@ body.light .topbar{background:rgba(240,240,248,0.75);}
 }
 .tab-panel{display:none;animation:fadein .22s var(--ease);}
 .tab-panel.active{display:block;}
+.page-panel{animation:fadein .2s var(--ease);}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 
 /* CARD */
