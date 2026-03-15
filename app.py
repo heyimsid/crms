@@ -12,11 +12,34 @@ app.secret_key = 'crms_premium_secret_key'
 # ── Database ────────────────────────────────────────────────────────────
 app.config['MYSQL_HOST']        = 'localhost'
 app.config['MYSQL_USER']        = 'root'
-app.config['MYSQL_PASSWORD']    = 'yourpassword'
+app.config['MYSQL_PASSWORD']    = 'your pass'
 app.config['MYSQL_DB']          = 'crms'
 app.config['MYSQL_CURSORCLASS'] = 'DictCursor'
 
 mysql = MySQL(app)
+
+def fix_booking_departments():
+    """
+    One-time fix: ensure every booking's department_id matches
+    the resource's department_id. This corrects old rows that were
+    saved with the student's department instead of the resource's.
+    """
+    try:
+        with app.app_context():
+            cur = mysql.connection.cursor()
+            cur.execute("""
+                UPDATE bookings b
+                JOIN resources r ON b.resource_id = r.resource_id
+                SET b.department_id = r.department_id
+                WHERE b.department_id != r.department_id
+            """)
+            fixed = cur.rowcount
+            mysql.connection.commit()
+            cur.close()
+            if fixed > 0:
+                print(f"[STARTUP FIX] Corrected department_id on {fixed} booking(s).")
+    except Exception as e:
+        print(f"[STARTUP FIX] Could not run fix: {e}")
 
 # ── Email Configuration ─────────────────────────────────────────────────
 #
@@ -34,9 +57,9 @@ mysql = MySQL(app)
 #
 EMAIL_HOST     = 'smtp.gmail.com'
 EMAIL_PORT     = 587
-EMAIL_USER     = 'nexuscrms@gmail.com'        
-EMAIL_PASSWORD = '...................'   #password needed -google app        
-EMAIL_FROM     = 'NEXUS Campus Resource Management System <nexuscrms@gmail.com>'  
+EMAIL_USER     = 'nexuscrms@gmail.com'        # ← YOUR GMAIL e.g. johndoe@gmail.com
+EMAIL_PASSWORD = '...................'            # ← 16-CHAR APP PASSWORD (no spaces)
+EMAIL_FROM     = 'NEXUS Campus Resource Management System <nexuscrms@gmail.com>'  # ← same Gmail address
 
 # In-memory OTP store: { email: { otp, expires_at } }
 # For production, use Redis or a DB table instead.
@@ -287,29 +310,36 @@ def dashboard():
 
     cur = mysql.connection.cursor()
 
-    all_users = all_issues = all_depts = []
+    all_users = all_issues = []
+    all_depts = []
+
     if session['role'] == 'admin':
         cur.execute("""
             SELECT u.user_id, u.name, u.email, u.role, d.department_name
-            FROM users u
-            LEFT JOIN department d ON u.department_id = d.department_id
+            FROM users u LEFT JOIN department d ON u.department_id = d.department_id
             ORDER BY u.role, u.name
         """)
         all_users = cur.fetchall()
 
+        # Admin sees: issues forwarded by HoDs + HoD's own reports (dept=99) + centralised
         cur.execute("""
-            SELECT i.issue_id,
-                   COALESCE(r.resource_name, 'General/Other Issue') AS resource_name,
-                   u.name AS reported_by, i.description, i.status
+            SELECT i.issue_id, i.issue_title,
+                   u.name AS reported_by,
+                   reporter_role.role AS reporter_role,
+                   d.department_name AS reporter_dept,
+                   i.description, i.status
             FROM issues i
-            LEFT JOIN resources r ON i.resource_id = r.resource_id
             JOIN users u ON i.reported_by = u.user_id
-            ORDER BY i.status DESC
+            LEFT JOIN users reporter_role ON i.reported_by = reporter_role.user_id
+            LEFT JOIN department d ON u.department_id = d.department_id
+            WHERE i.status = 'forwarded' OR i.department_id = 99
+            ORDER BY FIELD(i.status,'forwarded','open','resolved'), i.issue_id DESC
         """)
         all_issues = cur.fetchall()
 
-        cur.execute("SELECT * FROM department")
-        all_depts = cur.fetchall()
+    # Departments for report form (all roles)
+    cur.execute("SELECT * FROM department")
+    all_depts = cur.fetchall()
 
     cur.execute("SELECT * FROM resources WHERE status = 'available'")
     resources = cur.fetchall()
@@ -333,14 +363,35 @@ def dashboard():
     """)
     campus_schedule = cur.fetchall()
 
+    # My reported issues — for student and hod (their own reports)
     cur.execute("""
-        SELECT i.issue_id, COALESCE(r.resource_name,'General/Other Issue') AS resource_name,
+        SELECT i.issue_id, i.issue_title,
+               d.department_name AS sent_to_dept,
                i.description, i.status
         FROM issues i
-        LEFT JOIN resources r ON i.resource_id = r.resource_id
+        LEFT JOIN department d ON i.department_id = d.department_id
         WHERE i.reported_by = %s
+        ORDER BY i.issue_id DESC
     """, [session['user_id']])
     my_issues = cur.fetchall()
+
+    # Issues routed to HoD's department (from students only, not their own)
+    hod_issues = []
+    if session['role'] == 'hod':
+        cur.execute("""
+            SELECT i.issue_id, i.issue_title,
+                   u.name AS reported_by,
+                   d.department_name AS reporter_dept,
+                   i.description, i.status
+            FROM issues i
+            JOIN users u ON i.reported_by = u.user_id
+            LEFT JOIN department d ON u.department_id = d.department_id
+            WHERE i.department_id = %s
+              AND i.reported_by != %s
+              AND i.status = 'open'
+            ORDER BY i.issue_id DESC
+        """, [int(session['department_id']), session['user_id']])
+        hod_issues = cur.fetchall()
 
     approvals = []
     if session['role'] == 'hod':
@@ -352,8 +403,9 @@ def dashboard():
             JOIN users u ON b.user_id = u.user_id
             LEFT JOIN department req_dept ON u.department_id = req_dept.department_id
             JOIN resources r ON b.resource_id = r.resource_id
-            WHERE b.department_id = %s AND b.status = 'pending'
-        """, [session['department_id']])
+            WHERE b.status = 'pending'
+              AND r.department_id = %s
+        """, [int(session['department_id'])])
         approvals = cur.fetchall()
     elif session['role'] == 'admin':
         cur.execute("""
@@ -374,13 +426,14 @@ def dashboard():
         return render_template('dashboard.html',
             users=all_users, issues=all_issues, departments=all_depts,
             resources=resources, bookings=my_bookings,
-            my_issues=my_issues, approvals=approvals,
-            campus_schedule=campus_schedule)
+            my_issues=my_issues, hod_issues=[],
+            approvals=approvals, campus_schedule=campus_schedule)
     else:
         return render_template('dashboard.html',
             resources=resources, bookings=my_bookings,
-            my_issues=my_issues, approvals=approvals,
-            campus_schedule=campus_schedule)
+            my_issues=my_issues, hod_issues=hod_issues,
+            approvals=approvals, campus_schedule=campus_schedule,
+            departments=all_depts)
 
 
 # ── BOOKING ───────────────────────────────────────────────────────────────
@@ -457,7 +510,12 @@ def approve(booking_id):
         return redirect(url_for('dashboard'))
 
     cur = mysql.connection.cursor()
-    cur.execute("SELECT department_id FROM bookings WHERE booking_id = %s", [booking_id])
+    cur.execute("""
+        SELECT b.department_id, r.department_id AS resource_dept_id
+        FROM bookings b
+        JOIN resources r ON b.resource_id = r.resource_id
+        WHERE b.booking_id = %s
+    """, [booking_id])
     b = cur.fetchone()
 
     if not b:
@@ -465,8 +523,8 @@ def approve(booking_id):
         return redirect(url_for('dashboard'))
 
     authorized = (
-        (session['role'] == 'hod'   and b['department_id'] == session['department_id']) or
-        (session['role'] == 'admin' and b['department_id'] == 99)
+        (session['role'] == 'hod'   and int(b['resource_dept_id']) == int(session['department_id'])) or
+        (session['role'] == 'admin' and int(b['department_id']) == 99)
     )
 
     if not authorized:
@@ -488,7 +546,12 @@ def reject(booking_id):
         return redirect(url_for('dashboard'))
 
     cur = mysql.connection.cursor()
-    cur.execute("SELECT department_id FROM bookings WHERE booking_id = %s", [booking_id])
+    cur.execute("""
+        SELECT b.department_id, r.department_id AS resource_dept_id
+        FROM bookings b
+        JOIN resources r ON b.resource_id = r.resource_id
+        WHERE b.booking_id = %s
+    """, [booking_id])
     b = cur.fetchone()
 
     if not b:
@@ -496,8 +559,8 @@ def reject(booking_id):
         return redirect(url_for('dashboard'))
 
     authorized = (
-        (session['role'] == 'hod'   and b['department_id'] == session['department_id']) or
-        (session['role'] == 'admin' and b['department_id'] == 99)
+        (session['role'] == 'hod'   and int(b['resource_dept_id']) == int(session['department_id'])) or
+        (session['role'] == 'admin' and int(b['department_id']) == 99)
     )
 
     if not authorized:
@@ -541,49 +604,112 @@ def cancel_booking(booking_id):
 
 @app.route('/report_issue', methods=['POST'])
 def report_issue():
-    if 'user_id' not in session or 'department_id' not in session:
+    if 'user_id' not in session:
         session.clear()
         flash('Session invalid. Please sign in again.', 'error')
         return redirect(url_for('index'))
 
-    res_id       = request.form['resource_id']
-    final_res_id = None if res_id == '0' else res_id
-    owner_dept   = session['department_id']
+    issue_title = request.form.get('issue_title', '').strip()
+    description = request.form.get('description', '').strip()
+
+    if not issue_title or not description:
+        flash('Please fill in all fields.', 'error')
+        return redirect(url_for('dashboard'))
 
     cur = mysql.connection.cursor()
 
-    if final_res_id:
-        cur.execute("SELECT department_id FROM resources WHERE resource_id=%s", [final_res_id])
-        rd = cur.fetchone()
-        if rd:
-            owner_dept = rd['department_id']
+    if session['role'] == 'hod':
+        # HoD reports go directly to Admin (dept_id = 99)
+        cur.execute(
+            "INSERT INTO issues (issue_title, reported_by, department_id, description, status) VALUES (%s, %s, 99, %s, 'open')",
+            (issue_title, session['user_id'], description)
+        )
+        mysql.connection.commit()
+        cur.close()
+        flash('Issue reported directly to Admin.', 'success')
 
-    cur.execute(
-        "INSERT INTO issues (resource_id, reported_by, department_id, description, status) VALUES (%s,%s,%s,%s,'open')",
-        (final_res_id, session['user_id'], owner_dept, request.form['description'])
-    )
-    mysql.connection.commit()
-    cur.close()
-    flash('Issue reported successfully.', 'success')
+    else:
+        # Student picks which department
+        dept_id = request.form.get('department_id', '').strip()
+        if not dept_id:
+            flash('Please select a department.', 'error')
+            cur.close()
+            return redirect(url_for('dashboard'))
+
+        cur.execute(
+            "INSERT INTO issues (issue_title, reported_by, department_id, description, status) VALUES (%s, %s, %s, %s, 'open')",
+            (issue_title, session['user_id'], int(dept_id), description)
+        )
+        mysql.connection.commit()
+        cur.close()
+        if int(dept_id) == 99:
+            flash('Issue reported to Admin (Centralised).', 'success')
+        else:
+            flash('Issue reported to the department HoD.', 'success')
+
     return redirect(url_for('dashboard'))
 
 
-# ── RESOLVE ISSUE ─────────────────────────────────────────────────────────
+# ── RESOLVE ISSUE (admin only) ────────────────────────────────────────────
 
 @app.route('/resolve_issue/<int:issue_id>')
 def resolve_issue(issue_id):
     if session.get('role') != 'admin':
+        flash('Only Admin can resolve issues.', 'error')
         return redirect(url_for('dashboard'))
 
     cur = mysql.connection.cursor()
-    cur.execute("UPDATE issues SET status='resolved' WHERE issue_id=%s", (issue_id,))
+    cur.execute("SELECT issue_id FROM issues WHERE issue_id = %s", [issue_id])
+    if not cur.fetchone():
+        flash('Issue not found.', 'error')
+        cur.close()
+        return redirect(url_for('dashboard'))
+
+    cur.execute("UPDATE issues SET status='resolved' WHERE issue_id=%s", [issue_id])
     mysql.connection.commit()
     cur.close()
     flash('Issue marked as resolved.', 'success')
     return redirect(url_for('dashboard'))
 
 
-# ── ADD RESOURCE ──────────────────────────────────────────────────────────
+# ── FORWARD ISSUE TO ADMIN (hod only) ────────────────────────────────────
+
+@app.route('/forward_issue/<int:issue_id>')
+def forward_issue(issue_id):
+    if session.get('role') != 'hod':
+        flash('Only HoD can forward issues.', 'error')
+        return redirect(url_for('dashboard'))
+
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT department_id, status, reported_by FROM issues WHERE issue_id = %s", [issue_id])
+    issue = cur.fetchone()
+
+    if not issue:
+        flash('Issue not found.', 'error')
+        cur.close()
+        return redirect(url_for('dashboard'))
+
+    # Must belong to HoD's department
+    if int(issue['department_id']) != int(session['department_id']):
+        flash('Unauthorized: this issue does not belong to your department.', 'error')
+        cur.close()
+        return redirect(url_for('dashboard'))
+
+    # Must be open (not already forwarded or resolved)
+    if issue['status'] != 'open':
+        flash('This issue has already been forwarded or resolved.', 'error')
+        cur.close()
+        return redirect(url_for('dashboard'))
+
+    # Forward: set dept=99 (admin) and status=forwarded
+    cur.execute(
+        "UPDATE issues SET status='forwarded', department_id=99 WHERE issue_id=%s",
+        [issue_id]
+    )
+    mysql.connection.commit()
+    cur.close()
+    flash('Issue forwarded to Admin successfully.', 'success')
+    return redirect(url_for('dashboard'))
 
 @app.route('/add_resource', methods=['POST'])
 def add_resource():
@@ -639,4 +765,6 @@ def change_role(target_user_id):
 
 # ─────────────────────────────────────────────────────────────────────────
 if __name__ == '__main__':
+    with app.app_context():
+        fix_booking_departments()
     app.run(debug=True)
