@@ -1,285 +1,772 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CRMS | Dashboard</title>
-    <link rel="stylesheet" href="/static/style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NEXUS — Dashboard</title>
+  <link href="https://api.fontshare.com/v2/css?f[]=satoshi@700,500,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<nav class="navbar">
-    <div class="logo">CRMS<span class="dot">.</span></div>
-    <div style="display: flex; align-items: center; gap: 15px;">
-        <button id="themeToggle" class="btn-theme"><i class="fa-solid fa-moon"></i></button>
-        <span style="font-weight: 500; color: var(--text-muted);">
-            <i class="fa-solid fa-user" style="color: var(--accent-cyan);"></i>
-            {{ session.get('name','User') }} | 
-            <span style="text-transform: uppercase;">{{ session.get('role','Guest') }}</span>
-        </span>
-        <a href="/logout" class="btn-secondary">Logout</a>
-    </div>
-</nav>
-
-<div style="padding:120px 3% 50px; max-width: 1800px; margin: 0 auto;">
-
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
-    <div class="flash-container">
-    {% for category, message in messages %}
-        <div class="flash-toast {{ category }}">{{ message }}</div>
-    {% endfor %}
-    </div>
+  <div class="flash-container">
+  {% for category, message in messages %}
+    <div class="flash-toast {{ category }}">{{ message }}</div>
+  {% endfor %}
+  </div>
 {% endif %}
 {% endwith %}
 
-{% if session.get('role') == 'admin' %}
-<div class="grid-layout">
-    <div class="glass-card">
-        <h2>Add New Resource</h2>
-        <form action="/add_resource" method="POST">
-            <div class="input-group">
-                <input type="text" name="resource_name" class="premium-input" placeholder="Resource Name (e.g. Lab 404)" required>
-            </div>
-            <div class="input-group">
-                <select name="resource_type" class="premium-select" required>
-                    <option value="" disabled selected>Select Type</option>
-                    <option value="Lab">Lab</option>
-                    <option value="Equipment">Equipment</option>
-                    <option value="Venue">Venue</option>
-                </select>
-            </div>
-            <div class="input-group">
-                <select name="department_id" class="premium-select" required>
-                    <option value="" disabled selected>Assign to Department</option>
-                    {% for d in departments %}
-                        <option value="{{ d.department_id }}">{{ d.department_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <button type="submit" class="btn-primary full-width">Add Resource</button>
-        </form>
-    </div>
+<div class="shell">
 
-    <div class="glass-card">
-        <h2>Reported Issues</h2>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Resource</th>
-                        <th>Reported By</th>
-                        <th>Description</th>
-                        <th>Status</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for i in issues or [] %}
-                    <tr>
-                        <td>{{ i.resource_name }}</td>
-                        <td>{{ i.reported_by }}</td>
-                        <td>{{ i.description }}</td>
-                        <td><span class="badge badge-{{ i.status|lower }}">{{ i.status }}</span></td>
-                        <td>
-                            {% if i.status == 'open' %}
-                            <a href="/resolve_issue/{{ i.issue_id }}" class="btn-secondary" style="font-size: 0.65rem; padding: 6px 12px;">Resolve</a>
-                            {% else %}
-                            -
-                            {% endif %}
-                        </td>
-                    </tr>
-                {% else %}
-                    <tr><td colspan="5">No pending issues.</td></tr>
-                {% endfor %}
-                </tbody>
-            </table>
+<!-- ════════════════════════════════
+     SIDEBAR
+════════════════════════════════ -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-header">
+    <div>
+      <div class="sb-logo">NEXUS<span class="dot">·</span></div>
+      <div class="sb-tag">Resource Management</div>
+    </div>
+  </div>
+
+  <div class="sb-user">
+    <div class="sb-av">{{ session.get('name','U')[:1]|upper }}</div>
+    <div>
+      <div class="sb-name">{{ session.get('name','User') }}</div>
+      <div class="sb-role">{{ session.get('role','student') | title }}</div>
+    </div>
+  </div>
+
+  <nav class="sb-nav">
+
+    <span class="sb-sec">Overview</span>
+    <button class="sb-item active" data-page="overview">
+      <i class="fa-solid fa-grid-2"></i> Dashboard
+    </button>
+
+    {% if session.get('role') != 'admin' %}
+    <!-- NON-ADMIN: show booking tools -->
+    <span class="sb-sec">Resources</span>
+    <button class="sb-item" data-page="book">
+      <i class="fa-regular fa-calendar-plus"></i> Book a Resource
+    </button>
+    <button class="sb-item" data-page="schedule">
+      <i class="fa-regular fa-calendar-days"></i> Campus Schedule
+    </button>
+    <button class="sb-item" data-page="my-bookings">
+      <i class="fa-solid fa-calendar-check"></i> My Bookings
+    </button>
+
+    <span class="sb-sec">Support</span>
+    <button class="sb-item" data-page="report">
+      <i class="fa-solid fa-triangle-exclamation"></i> Report Issue
+    </button>
+    {% endif %}
+
+    {% if session.get('role') == 'admin' %}
+    <!-- ADMIN: management tools only -->
+    <span class="sb-sec">Administration</span>
+    <button class="sb-item" data-page="approvals">
+      <i class="fa-solid fa-check-double"></i> Approvals
+      {% if (approvals or [])|length > 0 %}
+        <span class="sb-badge">{{ (approvals or [])|length }}</span>
+      {% endif %}
+    </button>
+    <button class="sb-item" data-page="add-resource">
+      <i class="fa-solid fa-plus-circle"></i> Add Resource
+    </button>
+    <button class="sb-item" data-page="issues">
+      <i class="fa-solid fa-flag"></i> Issues
+      {% set oc = (issues or [])|selectattr('status','equalto','open')|list|length %}
+      {% if oc > 0 %}<span class="sb-badge">{{ oc }}</span>{% endif %}
+    </button>
+    <button class="sb-item" data-page="users">
+      <i class="fa-solid fa-users"></i> Users
+    </button>
+    {% endif %}
+
+    {% if session.get('role') == 'hod' %}
+    <span class="sb-sec">Management</span>
+    <button class="sb-item" data-page="approvals">
+      <i class="fa-solid fa-check-double"></i> Approvals
+      {% if (approvals or [])|length > 0 %}
+        <span class="sb-badge">{{ (approvals or [])|length }}</span>
+      {% endif %}
+    </button>
+    {% endif %}
+
+  </nav>
+
+  <div class="sb-footer">
+    <button class="sb-item" id="themeToggle">
+      <i class="fa-solid fa-moon"></i> Toggle Theme
+    </button>
+    <a href="/logout" class="sb-item" style="color:var(--err);">
+      <i class="fa-solid fa-right-from-bracket"></i> Sign Out
+    </a>
+  </div>
+</aside>
+
+<!-- ════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════ -->
+<div class="main">
+
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div style="display:flex;align-items:center;gap:11px;">
+      <button class="btn btn-icon" id="sbToggle" style="display:none;"><i class="fa-solid fa-bars"></i></button>
+      <span class="topbar-title" id="topbar-title">Dashboard</span>
+    </div>
+    <div class="topbar-right">
+      <span class="badge badge-{{ session.get('role','student') }}">{{ session.get('role','student') }}</span>
+    </div>
+  </header>
+
+  <div class="page">
+
+    <!-- ══════════════════════════════
+         PAGE: OVERVIEW (all roles)
+    ══════════════════════════════ -->
+    <div id="page-overview" class="page-panel active">
+      <div class="page-head">
+        <h1 class="page-title" id="greeting-el">Welcome</h1>
+        <p class="page-sub">Here's what's happening on your campus today.</p>
+      </div>
+
+      <!-- STAT CARDS -->
+      <div class="stat-row">
+        <div class="stat" style="border-top:2px solid var(--v);">
+          <i class="fa-solid fa-calendar-check stat-icon" style="color:var(--v);"></i>
+          <div class="stat-lbl">Total Bookings</div>
+          <div class="stat-val">{{ (bookings or [])|length }}</div>
+          <div class="stat-foot">All-time requests</div>
         </div>
-    </div>
-</div>
+        <div class="stat" style="border-top:2px solid var(--warn);">
+          <i class="fa-solid fa-hourglass-half stat-icon" style="color:var(--warn);"></i>
+          <div class="stat-lbl">Pending</div>
+          <div class="stat-val">{{ (bookings or [])|selectattr('status','equalto','pending')|list|length }}</div>
+          <div class="stat-foot">Awaiting approval</div>
+        </div>
+        <div class="stat" style="border-top:2px solid var(--ok);">
+          <i class="fa-solid fa-circle-check stat-icon" style="color:var(--ok);"></i>
+          <div class="stat-lbl">Approved</div>
+          <div class="stat-val">{{ (bookings or [])|selectattr('status','equalto','approved')|list|length }}</div>
+          <div class="stat-foot">Confirmed</div>
+        </div>
+        {% if session.get('role') in ['admin','hod'] %}
+        <div class="stat" style="border-top:2px solid var(--err);">
+          <i class="fa-solid fa-bell stat-icon" style="color:var(--err);"></i>
+          <div class="stat-lbl">Need Action</div>
+          <div class="stat-val">{{ (approvals or [])|length }}</div>
+          <div class="stat-foot">Pending approvals</div>
+        </div>
+        {% else %}
+        <div class="stat" style="border-top:2px solid var(--info);">
+          <i class="fa-solid fa-layer-group stat-icon" style="color:var(--info);"></i>
+          <div class="stat-lbl">Available</div>
+          <div class="stat-val">{{ (resources or [])|length }}</div>
+          <div class="stat-foot">Resources to book</div>
+        </div>
+        {% endif %}
+      </div>
 
-<div class="glass-card" style="margin-top: 30px;">
-    <h2>User Management</h2>
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Name</th>
-                    <th>Email</th>
-                    <th>Department</th>
-                    <th>Role</th>
-                    <th>Update Role</th>
-                </tr>
-            </thead>
+      <!-- ALERT BANNER for admins with pending approvals -->
+      {% if session.get('role') in ['admin','hod'] and (approvals or [])|length > 0 %}
+      <div style="margin-bottom:16px;padding:14px 18px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:var(--r-lg);display:flex;align-items:center;gap:12px;">
+        <i class="fa-solid fa-bell" style="color:var(--warn);"></i>
+        <span style="font-size:.85rem;color:var(--ink-2);flex:1;">
+          <strong style="color:var(--ink-1);">{{ (approvals or [])|length }} booking{{ 's' if (approvals or [])|length != 1 }}</strong> need{{ 's' if (approvals or [])|length == 1 }} your approval.
+        </span>
+        <button class="btn btn-warn btn-sm" onclick="switchPage('approvals')">Review →</button>
+      </div>
+      {% endif %}
+
+      <!-- RECENT OVERVIEW GRID -->
+      <div class="g2">
+        <!-- Recent bookings -->
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-solid fa-clock-rotate-left"></i> Recent Bookings
+            <div class="card-head-action">
+              {% if session.get('role') != 'admin' %}
+              <button class="btn btn-xs btn-dark" onclick="switchPage('my-bookings')">View all</button>
+              {% endif %}
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl">
+              <thead><tr><th>Resource</th><th>Date</th><th>Status</th></tr></thead>
+              <tbody>
+              {% for b in (bookings or [])[:5] %}
+              <tr>
+                <td><strong>{{ b.resource_name }}</strong><span class="sub">{{ b.purpose }}</span></td>
+                <td>{{ b.booking_date }}<span class="sub">{{ b.time_slot }}</span></td>
+                <td><span class="badge badge-{{ b.status|replace(' ','_')|lower }}">{{ b.status }}</span></td>
+              </tr>
+              {% else %}
+              <tr class="empty"><td colspan="3">
+                <div class="empty-state"><i class="fa-regular fa-calendar-xmark"></i>
+                  <p>No bookings yet.</p>
+                </div>
+              </td></tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Upcoming campus schedule -->
+        <div class="card">
+          <div class="card-head">
+            <i class="fa-regular fa-calendar-days"></i> Upcoming Schedule
+            <div class="card-head-action">
+              {% if session.get('role') != 'admin' %}
+              <button class="btn btn-xs btn-dark" onclick="switchPage('schedule')">View all</button>
+              {% endif %}
+            </div>
+          </div>
+          <div class="sched-scroll">
+            <ul class="sched-list">
+              {% for s in (campus_schedule or [])[:6] %}
+              <li class="sched-item">
+                <div class="sched-ico"><i class="fa-regular fa-clock"></i></div>
+                <div class="sched-detail">
+                  <strong>{{ s.resource_name }}</strong>
+                  <span>{{ s.booking_date }} &middot; {{ s.time_slot }}</span>
+                </div>
+                <span class="badge badge-{{ s.status|lower }}">{{ s.status }}</span>
+              </li>
+              {% else %}
+              <li>
+                <div class="empty-state">
+                  <i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i>
+                  <p>All clear — no upcoming bookings.</p>
+                </div>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div><!-- /overview -->
+
+
+    <!-- ══════════════════════════════
+         PAGE: BOOK A RESOURCE (non-admin)
+    ══════════════════════════════ -->
+    {% if session.get('role') != 'admin' %}
+    <div id="page-book" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Book a Resource</h1>
+        <p class="page-sub">Submit a request for a lab, venue, or equipment.</p>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-calendar-plus"></i> New Request</div>
+          <form action="/book" method="POST">
+            <div class="field">
+              <label>Select Resource</label>
+              <select name="resource_id" class="select" required>
+                <option value="" disabled selected>Choose a resource…</option>
+                {% for res in resources or [] %}
+                <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Purpose</label>
+              <textarea name="purpose" class="textarea" placeholder="e.g. Club meeting, Practical exam, Guest lecture…" required></textarea>
+            </div>
+            <div class="field">
+              <label>Date</label>
+              <input type="date" name="date" class="input" required>
+            </div>
+            <div class="field">
+              <label>Time Slot</label>
+              <div class="input-row">
+                <div class="field"><input type="time" name="start_time" class="input" required></div>
+                <div class="field"><input type="time" name="end_time"   class="input" required></div>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-v" style="width:100%;justify-content:center;margin-top:6px;">
+              <i class="fa-solid fa-paper-plane"></i>&nbsp; Submit Request
+            </button>
+          </form>
+        </div>
+        <div class="card" style="align-self:start;">
+          <div class="card-head"><i class="fa-solid fa-info-circle"></i> How it works</div>
+          <div class="steps">
+            <div class="step">
+              <div class="step-num">1</div>
+              <div><div class="step-title">Pick a resource</div><div class="step-body">Choose from available labs, venues, or equipment on campus.</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num">2</div>
+              <div><div class="step-title">State your purpose</div><div class="step-body">Give a clear reason — approvers use this to evaluate requests.</div></div>
+            </div>
+            <div class="step">
+              <div class="step-num">3</div>
+              <div><div class="step-title">Wait for approval</div><div class="step-body">Lab/Venue requests go to your HoD. Centralised Facilities go to Admin.</div></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         PAGE: CAMPUS SCHEDULE (non-admin)
+    ══════════════════════════════ -->
+    <div id="page-schedule" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Campus Schedule</h1>
+        <p class="page-sub">All current and upcoming resource bookings across campus.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><i class="fa-regular fa-calendar-days"></i> Live Schedule</div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="searchSchedule"
+            placeholder="Search by resource, date, or status…"
+            onkeyup="filterContent('searchSchedule','schedList','li.sched-item')">
+        </div>
+        <div class="sched-scroll" style="max-height:460px;">
+          <ul class="sched-list" id="schedList">
+            {% for s in campus_schedule or [] %}
+            <li class="sched-item">
+              <div class="sched-ico"><i class="fa-regular fa-clock"></i></div>
+              <div class="sched-detail">
+                <strong>{{ s.resource_name }}</strong>
+                <span>{{ s.booking_date }} &middot; {{ s.time_slot }}</span>
+              </div>
+              <span class="badge badge-{{ s.status|lower }}">{{ s.status }}</span>
+            </li>
+            {% else %}
+            <li>
+              <div class="empty-state">
+                <i class="fa-solid fa-circle-check" style="color:var(--ok);opacity:1;"></i>
+                <p>No upcoming bookings. Campus is clear.</p>
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════
+         PAGE: MY BOOKINGS (non-admin)
+    ══════════════════════════════ -->
+    <div id="page-my-bookings" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">My Bookings</h1>
+        <p class="page-sub">Track all your resource booking requests.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-calendar-check"></i> Booking History
+          <div class="card-head-action">
+            <button class="btn btn-xs btn-v" onclick="switchPage('book')">
+              <i class="fa-solid fa-plus"></i> New Booking
+            </button>
+          </div>
+        </div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="searchBookings"
+            placeholder="Search bookings…"
+            onkeyup="filterContent('searchBookings','bookTbl','tbody tr')">
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="bookTbl">
+            <thead><tr><th>Resource</th><th>Date &amp; Time</th><th>Purpose</th><th>Status</th><th>Action</th></tr></thead>
             <tbody>
-            {% for u in users or [] %}
-                <tr>
-                    <td>{{ u.name }}</td>
-                    <td>{{ u.email }}</td>
-                    <td>{{ u.department_name }}</td>
-                    <td><span class="badge badge-{{ u.role|replace(' ','_')|lower }}">{{ u.role }}</span></td>
-                    <td>
-                        {% if u.user_id != session.get('user_id') %}
-                        <form action="/admin/change_role/{{ u.user_id }}" method="POST" style="display:flex; gap:10px;">
-                            <select name="new_role" class="premium-select" style="padding: 8px; font-size: 0.8rem; width: auto;">
-                                <option value="student">Student</option>
-                                <option value="staff">Staff</option>
-                                <option value="hod">HOD</option>
-                                <option value="admin">Admin</option>
-                            </select>
-                            <button type="submit" class="btn-secondary" style="padding: 8px 15px;">Update</button>
-                        </form>
-                        {% else %}
-                        <span style="color: var(--accent-cyan); font-weight: bold;">LOCKED</span>
-                        {% endif %}
-                    </td>
-                </tr>
+            {% for b in bookings or [] %}
+            <tr>
+              <td><strong>{{ b.resource_name }}</strong></td>
+              <td>{{ b.booking_date }}<span class="sub">{{ b.time_slot }}</span></td>
+              <td style="max-width:180px;color:var(--ink-4);font-size:.8rem;">{{ b.purpose }}</td>
+              <td><span class="badge badge-{{ b.status|replace(' ','_')|lower }}">{{ b.status }}</span></td>
+              <td>
+                {% if b.status in ['pending','approved'] %}
+                <a href="/cancel_booking/{{ b.booking_id }}" class="btn btn-xs btn-err"
+                   onclick="return confirm('Cancel this booking?')">
+                  <i class="fa-solid fa-xmark"></i> Cancel
+                </a>
+                {% else %}<span style="color:var(--ink-5);">—</span>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr class="empty"><td colspan="5">
+              <div class="empty-state"><i class="fa-regular fa-calendar-xmark"></i>
+                <p>No bookings yet.<br>
+                  <span style="color:var(--v-2);cursor:pointer;" onclick="switchPage('book')">Make your first booking →</span>
+                </p>
+              </div>
+            </td></tr>
             {% endfor %}
             </tbody>
-        </table>
+          </table>
+        </div>
+      </div>
     </div>
-</div>
 
-{% else %}
+    <!-- ══════════════════════════════
+         PAGE: REPORT ISSUE (non-admin)
+    ══════════════════════════════ -->
+    <div id="page-report" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Report an Issue</h1>
+        <p class="page-sub">Let the admin know about any broken or unavailable resource.</p>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-triangle-exclamation"></i> Submit Report</div>
+          <form action="/report_issue" method="POST">
+            <div class="field">
+              <label>Resource (optional)</label>
+              <select name="resource_id" class="select" required>
+                <option value="0">General Campus Issue</option>
+                {% for res in resources or [] %}
+                <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label>Description</label>
+              <textarea name="description" class="textarea"
+                placeholder="Describe the problem in detail — e.g. 'Projector in Lab 4 is not working'" required></textarea>
+            </div>
+            <button type="submit" class="btn btn-warn" style="width:100%;justify-content:center;border-radius:var(--r-full);padding:11px 20px;font-size:.84rem;">
+              <i class="fa-solid fa-flag"></i>&nbsp; Submit Report
+            </button>
+          </form>
+        </div>
+        <div class="card" style="align-self:start;">
+          <div class="card-head"><i class="fa-solid fa-lightbulb"></i> When to report</div>
+          <div class="info-pills">
+            <div class="info-pill">
+              <i class="fa-solid fa-circle-dot" style="color:var(--err);margin-top:2px;"></i>
+              <span class="info-pill-text">Equipment that is broken, damaged, or completely missing.</span>
+            </div>
+            <div class="info-pill">
+              <i class="fa-solid fa-circle-dot" style="color:var(--warn);margin-top:2px;"></i>
+              <span class="info-pill-text">Labs or venues that are locked or inaccessible during booking hours.</span>
+            </div>
+            <div class="info-pill">
+              <i class="fa-solid fa-circle-dot" style="color:var(--info);margin-top:2px;"></i>
+              <span class="info-pill-text">Any safety, hygiene, or infrastructure concern on campus.</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% endif %}<!-- /non-admin pages -->
 
-{% if session.get('role') == 'hod' %}
-<div class="glass-card" style="margin-bottom: 30px; border-left: 2px solid var(--accent-purple);">
-    <h2>Pending Approvals</h2>
-    <div class="table-responsive">
-        <table class="data-table">
-            <thead>
-                <tr>
-                    <th>Requester</th>
-                    <th>Resource</th>
-                    <th>Date & Time</th>
-                    <th>Purpose</th>
-                    <th>Action</th>
-                </tr>
-            </thead>
+
+    <!-- ══════════════════════════════
+         PAGE: APPROVALS (admin + hod)
+    ══════════════════════════════ -->
+    {% if session.get('role') in ['admin','hod'] %}
+    <div id="page-approvals" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Pending Approvals</h1>
+        <p class="page-sub">Review and action booking requests that need your approval.</p>
+      </div>
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-check-double"></i> Awaiting Review
+          <div class="card-head-action">
+            <span style="font-size:.76rem;color:var(--ink-4);">{{ (approvals or [])|length }} pending</span>
+          </div>
+        </div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="searchApprovals"
+            placeholder="Search by requester, resource, or purpose…"
+            onkeyup="filterContent('searchApprovals','approvalsTbl','tbody tr')">
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="approvalsTbl">
+            <thead><tr><th>Requester</th><th>Resource</th><th>Date &amp; Time</th><th>Purpose</th><th>Action</th></tr></thead>
             <tbody>
             {% for a in approvals or [] %}
-                <tr>
-                    <td>{{ a.name }}</td>
-                    <td>{{ a.resource_name }}</td>
-                    <td>{{ a.booking_date }} | {{ a.time_slot }}</td>
-                    <td><em style="color: var(--text-muted);">{{ a.purpose }}</em></td>
-                    <td style="display:flex; gap:10px;">
-                        <a href="/approve/{{ a.booking_id }}" class="btn-primary" style="padding: 8px 15px; font-size: 0.7rem;">Approve</a>
-                        <a href="/reject/{{ a.booking_id }}" class="btn-secondary" style="padding: 8px 15px; font-size: 0.7rem; border-color: #ff0055; color: #ff0055;">Reject</a>
-                    </td>
-                </tr>
+            <tr>
+              <td>
+                <strong>{{ a.name }}</strong>
+                <span class="sub"><i class="fa-solid fa-building" style="font-size:.6rem;"></i> {{ a.requester_dept or 'Unknown' }}</span>
+              </td>
+              <td>{{ a.resource_name }}</td>
+              <td>{{ a.booking_date }}<span class="sub">{{ a.time_slot }}</span></td>
+              <td style="max-width:160px;color:var(--ink-4);font-style:italic;font-size:.8rem;">{{ a.purpose }}</td>
+              <td>
+                <div style="display:flex;gap:6px;">
+                  <a href="/approve/{{ a.booking_id }}" class="btn btn-xs btn-ok">
+                    <i class="fa-solid fa-check"></i> Approve
+                  </a>
+                  <a href="/reject/{{ a.booking_id }}" class="btn btn-xs btn-err">
+                    <i class="fa-solid fa-xmark"></i> Reject
+                  </a>
+                </div>
+              </td>
+            </tr>
             {% else %}
-                <tr><td colspan="5">No pending approvals.</td></tr>
+            <tr class="empty"><td colspan="5">
+              <div class="empty-state"><i class="fa-solid fa-inbox"></i><p>All caught up — no pending approvals.</p></div>
+            </td></tr>
             {% endfor %}
             </tbody>
-        </table>
-    </div>
-</div>
-{% endif %}
-
-<div class="grid-layout">
-    <div class="glass-card">
-        <h2>Book a Resource</h2>
-        <form action="/book" method="POST">
-            <div class="input-group">
-                <select name="resource_id" class="premium-select" required>
-                    <option value="" disabled selected>Select Resource</option>
-                    {% for res in resources or [] %}
-                        <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="input-group">
-                <textarea name="purpose" class="premium-input" placeholder="Why do you need this? (e.g. Club Meeting, Practical Exam)" required></textarea>
-            </div>
-            <div class="input-group">
-                <input type="date" name="date" class="premium-input" required>
-            </div>
-            <div class="input-group" style="display: flex; gap: 10px;">
-                <input type="time" name="start_time" class="premium-input" required>
-                <input type="time" name="end_time" class="premium-input" required>
-            </div>
-            <button type="submit" class="btn-primary full-width">Submit Request</button>
-        </form>
-    </div>
-
-    <div class="glass-card">
-        <h2>Campus Schedule</h2>
-        <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">Check for conflicts before submitting a request.</p>
-        <div class="schedule-scroll">
-            <ul class="schedule-list">
-                {% for s in campus_schedule or [] %}
-                <li class="schedule-item">
-                    <div class="schedule-icon"><i class="fa-solid fa-clock"></i></div>
-                    <div class="schedule-details">
-                        <strong>{{ s.resource_name }}</strong>
-                        <span>{{ s.booking_date }} | {{ s.time_slot }}</span>
-                    </div>
-                    <div class="schedule-status">
-                        <span class="badge badge-{{ s.status|lower }}">{{ s.status }}</span>
-                    </div>
-                </li>
-                {% else %}
-                <li style="color: var(--text-muted); padding: 10px 0;">No upcoming bookings. System clear.</li>
-                {% endfor %}
-            </ul>
+          </table>
         </div>
+      </div>
     </div>
-</div>
+    {% endif %}
 
-<div class="grid-layout" style="margin-top: 30px;">
-    <div class="glass-card">
-        <h2>Report an Issue</h2>
-        <form action="/report_issue" method="POST">
-            <div class="input-group">
-                <select name="resource_id" class="premium-select" required>
-                    <option value="0">General Campus Issue</option>
-                    {% for res in resources or [] %}
-                        <option value="{{ res.resource_id }}">{{ res.resource_name }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="input-group">
-                <textarea name="description" class="premium-input" placeholder="Describe the issue (e.g., Projector is broken)..." required></textarea>
-            </div>
-            <button type="submit" class="btn-secondary full-width">Submit Report</button>
-        </form>
-    </div>
 
-    <div class="glass-card">
-        <h2>My Bookings</h2>
-        <div class="table-responsive">
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Resource</th>
-                        <th>Date & Time</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                {% for b in bookings or [] %}
-                    <tr>
-                        <td>{{ b.resource_name }}<br><span style="font-size: 0.75rem; color: var(--text-muted);">{{ b.purpose }}</span></td>
-                        <td>{{ b.booking_date }}<br><span style="font-size: 0.75rem; color: var(--text-muted);">{{ b.time_slot }}</span></td>
-                        <td><span class="badge badge-{{ b.status|replace(' ','_')|lower }}">{{ b.status }}</span></td>
-                    </tr>
-                {% else %}
-                    <tr><td colspan="3">You have no recent bookings.</td></tr>
+    <!-- ══════════════════════════════
+         PAGE: ADD RESOURCE (admin only)
+    ══════════════════════════════ -->
+    {% if session.get('role') == 'admin' %}
+    <div id="page-add-resource" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Add Resource</h1>
+        <p class="page-sub">Register a new lab, venue, or equipment to the system.</p>
+      </div>
+      <div class="g2">
+        <div class="card">
+          <div class="card-head"><i class="fa-solid fa-plus-circle"></i> New Resource</div>
+          <form action="/add_resource" method="POST">
+            <div class="field">
+              <label>Resource Name</label>
+              <input type="text" name="resource_name" class="input" placeholder="e.g. Lab 404, Seminar Hall A" required>
+            </div>
+            <div class="field">
+              <label>Resource Type</label>
+              <select name="resource_type" id="resourceType" class="select" required>
+                <option value="" disabled selected>Select type</option>
+                <option value="Centralised Facility">Centralised Facility</option>
+                <option value="Lab">Lab</option>
+                <option value="Equipment">Equipment</option>
+                <option value="Venue">Venue</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Assign to Department</label>
+              <select name="department_id" id="departmentId" class="select" required>
+                <option value="" disabled selected>Select department</option>
+                {% for d in departments %}
+                <option value="{{ d.department_id }}">{{ d.department_name }}</option>
                 {% endfor %}
-                </tbody>
-            </table>
+              </select>
+            </div>
+            <button type="submit" class="btn btn-v" style="width:100%;justify-content:center;margin-top:6px;">
+              <i class="fa-solid fa-plus"></i>&nbsp; Add Resource
+            </button>
+          </form>
         </div>
+        <div class="card" style="align-self:start;">
+          <div class="card-head"><i class="fa-solid fa-info-circle"></i> Resource Types</div>
+          <div class="info-pills">
+            <div class="info-pill">
+              <i class="fa-solid fa-building" style="color:var(--v-2);margin-top:2px;"></i>
+              <div>
+                <div class="step-title">Centralised Facility</div>
+                <div class="step-body">Shared across departments. Approved by Admin. Department = 99.</div>
+              </div>
+            </div>
+            <div class="info-pill">
+              <i class="fa-solid fa-computer" style="color:var(--c);margin-top:2px;"></i>
+              <div>
+                <div class="step-title">Lab / Equipment / Venue</div>
+                <div class="step-body">Belongs to a department. Approved by the respective HoD first.</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
     </div>
-</div>
 
-{% endif %}
+    <!-- ══════════════════════════════
+         PAGE: ISSUES (admin only)
+    ══════════════════════════════ -->
+    <div id="page-issues" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">Reported Issues</h1>
+        <p class="page-sub">View and resolve all campus issues submitted by users.</p>
+      </div>
+      <div class="card">
+        <div class="card-head"><i class="fa-solid fa-triangle-exclamation"></i> Issue Tracker</div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="searchIssues"
+            placeholder="Search issues…"
+            onkeyup="filterContent('searchIssues','issuesTbl','tbody tr')">
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="issuesTbl">
+            <thead><tr><th>Resource</th><th>Reported By</th><th>Description</th><th>Status</th><th>Action</th></tr></thead>
+            <tbody>
+            {% for i in issues or [] %}
+            <tr>
+              <td><strong>{{ i.resource_name }}</strong></td>
+              <td>{{ i.reported_by }}</td>
+              <td style="max-width:200px;color:var(--ink-4);font-size:.8rem;">{{ i.description }}</td>
+              <td><span class="badge badge-{{ i.status|lower }}">{{ i.status }}</span></td>
+              <td>
+                {% if i.status == 'open' %}
+                <a href="/resolve_issue/{{ i.issue_id }}" class="btn btn-xs btn-ok">
+                  <i class="fa-solid fa-check"></i> Resolve
+                </a>
+                {% else %}<span style="color:var(--ink-5);">—</span>{% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr class="empty"><td colspan="5">
+              <div class="empty-state"><i class="fa-solid fa-face-smile"></i><p>No open issues. All good!</p></div>
+            </td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
 
-</div>
+    <!-- ══════════════════════════════
+         PAGE: USER MANAGEMENT (admin only)
+    ══════════════════════════════ -->
+    <div id="page-users" class="page-panel" style="display:none;">
+      <div class="page-head">
+        <h1 class="page-title">User Management</h1>
+        <p class="page-sub">View all registered users and manage their platform roles.</p>
+      </div>
 
+      <!-- Role filter tabs -->
+      <div class="tab-bar">
+        <button class="tab active" data-tab="u-all">All</button>
+        <button class="tab" data-tab="u-student">Students</button>
+        <button class="tab" data-tab="u-staff">Staff</button>
+        <button class="tab" data-tab="u-hod">HoDs</button>
+        <button class="tab" data-tab="u-admin">Admins</button>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <i class="fa-solid fa-users"></i> All Users
+          <div class="card-head-action" style="font-size:.76rem;color:var(--ink-4);">{{ (users or [])|length }} total</div>
+        </div>
+        <div class="search-wrap" style="margin-bottom:14px;">
+          <i class="fa-solid fa-magnifying-glass"></i>
+          <input type="text" class="search-input" id="searchUsers"
+            placeholder="Search by name, email, department or role…"
+            onkeyup="filterContent('searchUsers','usersTbl','tbody tr')">
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="usersTbl">
+            <thead><tr><th>Name</th><th>Email</th><th>Department</th><th>Role</th><th>Update Role</th></tr></thead>
+            <tbody>
+            {% for u in users or [] %}
+            <tr data-role="{{ u.role|lower }}">
+              <td><strong>{{ u.name }}</strong></td>
+              <td style="color:var(--ink-4);">{{ u.email }}</td>
+              <td>{{ u.department_name or '—' }}</td>
+              <td><span class="badge badge-{{ u.role|lower }}">{{ u.role }}</span></td>
+              <td>
+                {% if u.user_id != session.get('user_id') %}
+                <form action="/admin/change_role/{{ u.user_id }}" method="POST" style="display:flex;gap:6px;align-items:center;">
+                  <select name="new_role" class="select" style="width:auto;padding:6px 28px 6px 10px;font-size:.76rem;">
+                    <option value="student" {% if u.role=='student' %}selected{% endif %}>Student</option>
+                    <option value="staff"   {% if u.role=='staff'   %}selected{% endif %}>Staff</option>
+                    <option value="hod"     {% if u.role=='hod'     %}selected{% endif %}>HoD</option>
+                    <option value="admin"   {% if u.role=='admin'   %}selected{% endif %}>Admin</option>
+                  </select>
+                  <button type="submit" class="btn btn-xs btn-ok"><i class="fa-solid fa-check"></i> Save</button>
+                </form>
+                {% else %}
+                <span class="badge badge-locked">You (locked)</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% else %}
+            <tr class="empty"><td colspan="5">No users found.</td></tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    {% endif %}<!-- /admin pages -->
+
+  </div><!-- /page -->
+</div><!-- /main -->
+</div><!-- /shell -->
+
+<script>
+// GREETING
+(function(){
+  const h = new Date().getHours();
+  const g = h<12?'Good morning':h<18?'Good afternoon':'Good evening';
+  const name = "{{ session.get('name','') }}";
+  const el = document.getElementById('greeting-el');
+  if(el) el.textContent = name ? `${g}, ${name}` : g;
+})();
+
+// PAGE SWITCHER
+const PAGE_TITLES = {
+  overview:'Dashboard', book:'Book a Resource', schedule:'Campus Schedule',
+  'my-bookings':'My Bookings', report:'Report Issue',
+  approvals:'Approvals', 'add-resource':'Add Resource',
+  issues:'Issue Tracker', users:'User Management'
+};
+function switchPage(id){
+  document.querySelectorAll('.page-panel').forEach(p=>p.style.display='none');
+  const t = document.getElementById('page-'+id);
+  if(t){ t.style.display='block'; t.classList.add('active'); }
+  document.querySelectorAll('.sb-item').forEach(n=>n.classList.remove('active'));
+  const nb = document.querySelector(`.sb-item[data-page="${id}"]`);
+  if(nb) nb.classList.add('active');
+  const tb = document.getElementById('topbar-title');
+  if(tb) tb.textContent = PAGE_TITLES[id]||id;
+}
+document.querySelectorAll('.sb-item[data-page]').forEach(btn=>{
+  btn.addEventListener('click',()=>switchPage(btn.dataset.page));
+});
+
+// USER TAB FILTER
+document.querySelectorAll('.tab[data-tab]').forEach(tab=>{
+  tab.addEventListener('click',()=>{
+    tab.closest('.tab-bar').querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+    tab.classList.add('active');
+    const f = tab.dataset.tab;
+    document.querySelectorAll('#usersTbl tbody tr[data-role]').forEach(row=>{
+      if(f==='u-all'){row.style.display='';return;}
+      const map={'u-student':'student','u-staff':'staff','u-hod':'hod','u-admin':'admin'};
+      row.style.display=row.dataset.role===map[f]?'':'none';
+    });
+  });
+});
+
+// SEARCH FILTER
+function filterContent(inputId, containerId, sel){
+  const f = document.getElementById(inputId).value.toLowerCase();
+  const c = document.getElementById(containerId);
+  if(!c) return;
+  c.querySelectorAll(sel).forEach(item=>{
+    item.style.display=(item.textContent||item.innerText).toLowerCase().includes(f)?'':'none';
+  });
+}
+
+// MOBILE SIDEBAR
+const sbToggle = document.getElementById('sbToggle');
+const sidebar  = document.getElementById('sidebar');
+if(sbToggle){ sbToggle.style.display='flex'; sbToggle.addEventListener('click',()=>sidebar.classList.toggle('open')); }
+</script>
 <script src="/static/script.js"></script>
 </body>
-
 </html>
